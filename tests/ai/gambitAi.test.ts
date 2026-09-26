@@ -173,6 +173,38 @@ describe("decideGambit — powderkeg", () => {
       decideGambit(k, self, "captain-powderkeg", "easy", mulberry32(1)),
     ).toBeNull();
   });
+
+  it("can pick a center next to a stale hit after a relocation", () => {
+    // Fire at every cell except the blast of (1,5); (0,4) is a hit on the
+    // cruiser, which then relocates — making (0,4) stale. The only legal
+    // powderkeg center is (1,5), whose blast touches the stale hit.
+    let k = initialKnowledge(RULES, 0);
+    k = observe(k, [hit(0, 4, "cruiser")]);
+    const misses: GameEvent[] = [];
+    for (let r = 0; r < 10; r++) {
+      for (let c = 0; c < 10; c++) {
+        if (r === 0 && c === 4) continue; // the hit
+        if (r === 1 && (c === 4 || c === 5 || c === 6)) continue;
+        if (c === 5 && (r === 0 || r === 2)) continue;
+        misses.push(miss(r, c));
+      }
+    }
+    k = observe(k, misses);
+    k = observe(k, [{ type: "relocated", by: 1, shipId: "cruiser", seq: 0 }]);
+    expect(k.staleHits).toEqual(["0,4"]);
+    const params = decideGambit(
+      k,
+      self,
+      "captain-powderkeg",
+      "medium",
+      mulberry32(1),
+    );
+    // Without the stale exclusion this center would be not_open_water.
+    expect(params).toEqual({
+      kind: "powderkeg",
+      center: { row: 1, col: 5 },
+    });
+  });
 });
 
 describe("decideGambit — crowsnest", () => {

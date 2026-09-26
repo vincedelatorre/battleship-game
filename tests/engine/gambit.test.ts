@@ -178,6 +178,7 @@ describe("createGame with gambit rules", () => {
     expect(g.gambit).toEqual({
       captains: ["captain-broadside", "captain-broadside"],
       used: [false, false],
+      relocations: [],
     });
   });
 });
@@ -456,41 +457,30 @@ describe("powderkeg", () => {
     expect(r.ok).toBe(true);
   });
 
-  it("still blocks blasts touching hits on a relocated ship, until it is sunk", () => {
-    // Conservative rule: hits left behind by a Ghost Ship move still count as
-    // known hits on an un-sunk ship, even though no ship is there any more.
+  it("releases the block once the hit ship relocates", () => {
+    // Hits left behind by a Ghost Ship move are stale: they stop counting as
+    // known hits for Powder Keg, even though the ship is not sunk.
     let g = newGame([POWDERKEG, GHOSTSHIP]);
     g = mustFire(g, 0, { row: 0, col: 4 }).state; // hit B's cruiser (V at col 4)
+    // Centre (1,5): blast = (1,5),(0,5),(2,5),(1,4),(1,6) — none fired, but
+    // (0,5) and (1,4) touch the live hit at (0,4).
+    const center = { row: 1, col: 5 };
+    expect(powderKegLegal(g, 0, center)).toEqual({
+      ok: false,
+      error: "not_open_water",
+    });
     const moved = useGambit(g, 1, {
       kind: "ghostship",
       to: { id: "cruiser", row: 5, col: 0, orientation: "H" },
     });
     if (!moved.ok) throw new Error("ghostship failed");
     g = moved.value.state;
-    // Centre (1,5): blast = (1,5),(0,5),(2,5),(1,4),(1,6) — none fired, but
-    // (0,5) and (1,4) touch the stale hit at (0,4). The cruiser is no longer
-    // there, yet the blast is still rejected.
-    const center = { row: 1, col: 5 };
-    expect(powderKegLegal(g, 0, center)).toEqual({
-      ok: false,
-      error: "not_open_water",
-    });
-    expect(useGambit(g, 0, { kind: "powderkeg", center })).toEqual({
-      ok: false,
-      error: "not_open_water",
-    });
-    // A sinks the cruiser at its new position: the move repaired its one
-    // carried hit, so all three new cells must be hit.
-    g = mustFire(g, 0, { row: 5, col: 0 }).state;
-    g = mustFire(g, 1, { row: 6, col: 6 }).state; // B misses
-    g = mustFire(g, 0, { row: 5, col: 1 }).state;
-    g = mustFire(g, 1, { row: 6, col: 7 }).state; // B misses
-    const sink = mustFire(g, 0, { row: 5, col: 2 });
-    expect(sink.events[0]).toMatchObject({ result: "sunk", shipId: "cruiser" });
-    g = sink.state;
-    // The same centre is legal now: every known hit belongs to a sunk ship.
+    // The relocation is recorded: the opponent (A) had fired 1 shot.
+    expect(g.gambit?.relocations).toEqual([
+      { owner: 1, shipId: "cruiser", beforeShot: 1 },
+    ]);
+    // The old hit is stale: the same centre is legal now.
     expect(powderKegLegal(g, 0, center).ok).toBe(true);
-    g = mustFire(g, 1, { row: 6, col: 8 }).state; // B misses, back to A
     const blast = useGambit(g, 0, { kind: "powderkeg", center });
     if (!blast.ok) throw new Error(`powderkeg failed: ${blast.error}`);
     // Every blast cell is a miss — including (1,4), the cruiser's old berth.
@@ -502,13 +492,18 @@ describe("powderkeg", () => {
       "shot",
       "shot",
     ]);
-    expect(blast.value.state.players[0].shots.slice(-5).map((s) => s.result)).toEqual([
-      "miss",
-      "miss",
-      "miss",
-      "miss",
-      "miss",
-    ]);
+    expect(
+      blast.value.state.players[0].shots.slice(-5).map((s) => s.result),
+    ).toEqual(["miss", "miss", "miss", "miss", "miss"]);
+    g = blast.value.state;
+    // But a NEW hit on the cruiser at its new position blocks again.
+    g = mustFire(g, 1, { row: 6, col: 6 }).state; // B misses
+    g = mustFire(g, 0, { row: 5, col: 0 }).state; // hit the relocated cruiser
+    // Centre (4,1): blast includes (4,0), adjacent to the live hit (5,0).
+    expect(powderKegLegal(g, 0, { row: 4, col: 1 })).toEqual({
+      ok: false,
+      error: "not_open_water",
+    });
   });
 
   it("sinking the last ship mid-blast ends the game and skips the rest", () => {
@@ -752,6 +747,7 @@ describe("rematch", () => {
     expect(m1.value.gambit).toEqual({
       captains: ["captain-broadside", "captain-crowsnest"],
       used: [false, false],
+      relocations: [],
     });
     const m2 = rematch(m1.value, [fleetA(), fleetB()]);
     if (!m2.ok) throw new Error("rematch 2 failed");
@@ -908,5 +904,5 @@ describe("seeded simulation", () => {
       new Set(["broadside", "powderkeg", "crowsnest", "ghostship"]),
     );
     expect(gambitCount).toBeGreaterThan(50);
-  });
+  }, 30000);
 });

@@ -48,7 +48,7 @@ export function createGame(opts: {
     if (!opts.captains) {
       return { ok: false, error: "missing_captains" };
     }
-    gambit = { captains: opts.captains, used: [false, false] };
+    gambit = { captains: opts.captains, used: [false, false], relocations: [] };
   } else if (opts.captains !== undefined) {
     return { ok: false, error: "unexpected_captains" };
   }

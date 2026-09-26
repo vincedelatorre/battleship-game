@@ -45,6 +45,17 @@ export type GameStatus = "playing" | "over";
 export interface GambitState {
   readonly captains: readonly [CaptainId, CaptainId];
   readonly used: readonly [boolean, boolean];
+  /**
+   * Ghost Ship relocations. `beforeShot` is how many shots the opponent
+   * had fired at `owner` when the ship moved — the opponent's hits on
+   * that ship with shot index < beforeShot are stale history, not live
+   * targets.
+   */
+  readonly relocations: readonly {
+    readonly owner: PlayerIndex;
+    readonly shipId: ShipId;
+    readonly beforeShot: number;
+  }[];
 }
 
 export interface GameState {

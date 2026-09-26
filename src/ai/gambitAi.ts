@@ -64,7 +64,12 @@ export function decideGambit(
       for (let row = 0; row < k.rules.rows; row++) {
         for (let col = 0; col < k.rules.cols; col++) {
           const center = { row, col };
-          const legal = powderKegLegalFromShots(k.shots, center, k.rules);
+          const legal = powderKegLegalFromShots(
+            k.shots,
+            center,
+            k.rules,
+            new Set(k.staleHits),
+          );
           if (!legal.ok) continue;
           const n = legal.value.length;
           if (n > bestCount) {

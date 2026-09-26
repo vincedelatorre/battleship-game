@@ -19,6 +19,7 @@ export {
   powderKegLegal,
   powderKegLegalFromShots,
   scoutArea,
+  staleHitKeys,
   useGambit,
   type GambitError,
   type GambitParams,

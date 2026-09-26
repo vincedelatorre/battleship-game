@@ -82,7 +82,31 @@ export function powderKegLegal(
     state.players[player].shots,
     center,
     state.rules,
+    staleHitKeys(state, player),
   );
+}
+
+/**
+ * coordKeys of `shooter`'s hits left behind by the opponent's Ghost Ship
+ * relocations — shots with index < beforeShot on the relocated ship.
+ * They are history, not live targets, so Powder Keg ignores them.
+ */
+export function staleHitKeys(
+  state: GameState,
+  shooter: PlayerIndex,
+): Set<string> {
+  const out = new Set<string>();
+  const shots = state.players[shooter].shots;
+  for (const r of state.gambit?.relocations ?? []) {
+    if (r.owner === shooter) continue;
+    for (let i = 0; i < r.beforeShot && i < shots.length; i++) {
+      const s = shots[i];
+      if (s && s.result === "hit" && s.shipId === r.shipId) {
+        out.add(coordKey(s.coord));
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -93,6 +117,7 @@ export function powderKegLegalFromShots(
   shots: readonly Shot[],
   center: Coord,
   rules: Rules = RULES,
+  stale?: ReadonlySet<string>,
 ): Result<Coord[], "out_of_bounds" | "not_open_water"> {
   if (!inBounds(center, rules)) {
     return { ok: false, error: "out_of_bounds" };
@@ -114,7 +139,8 @@ export function powderKegLegalFromShots(
         (s) =>
           (s.result === "hit" || s.result === "sunk") &&
           s.shipId !== undefined &&
-          !sunkIds.has(s.shipId),
+          !sunkIds.has(s.shipId) &&
+          !stale?.has(coordKey(s.coord)),
       )
       .map((s) => coordKey(s.coord)),
   );
@@ -144,7 +170,11 @@ function beginGambit(
 ): GameState {
   const used: [boolean, boolean] =
     player === 0 ? [true, gs.used[1]] : [gs.used[0], true];
-  return { ...state, gambit: { captains: gs.captains, used }, seq };
+  return {
+    ...state,
+    gambit: { captains: gs.captains, used, relocations: gs.relocations },
+    seq,
+  };
 }
 
 /** Fire cells in order through resolveShot; stop immediately if the game ends. */
@@ -284,6 +314,17 @@ export function useGambit(
     return { ok: false, error: "fired_cell" };
   }
   let s = beginGambit(state, gs, player, seq);
+  // Record the relocation so the opponent's hits on this ship's old
+  // position become stale (they no longer block Powder Keg).
+  const relocations = [
+    ...gs.relocations,
+    {
+      owner: player,
+      shipId: to.id,
+      beforeShot: state.players[other(player)].shots.length,
+    },
+  ];
+  s = { ...s, gambit: { ...(s.gambit ?? gs), relocations } };
   // Relocating patches up the ship: it keeps all damage minus one hit.
   const movedFleet: ShipState[] = me.fleet.map((sh) =>
     sh === ship ? { ...to, hits: Math.max(0, sh.hits - 1) } : sh,
