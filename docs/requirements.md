@@ -30,25 +30,80 @@ Source: Hasbro Battleship instructions (hasbro.com/common/instruct/battleship.pd
 - **Grids:** Each player has two 10x10 grids. The **Ocean Grid** holds your own fleet. The **Target Grid** tracks your shots at the opponent. Rows lettered A–J, columns numbered 1–10.
 - **Fleet (5 ships, 17 cells):**
 
-| Ship | Length |
-|------|--------|
-| Carrier | 5 |
-| Battleship | 4 |
-| Cruiser | 3 |
-| Submarine | 3 |
-| Destroyer | 2 |
+| Ship (Hasbro rules name) | Length | Displayed pirate name (see 1B) |
+|------|--------|--------|
+| Carrier | 5 | Man-o'-War |
+| Battleship | 4 | Galleon |
+| Cruiser | 3 | Frigate |
+| Submarine | 3 | Brigantine |
+| Destroyer | 2 | Sloop |
 
 - **Placement:** Each ship is placed horizontally or vertically only (never diagonally). Ships may not overlap, may not hang off the grid, and may not be moved once play begins. Ships may touch (classic rules do not forbid adjacency).
 - **Turn order:** Players alternate. One shot per turn: call a coordinate (e.g. "B-7").
 - **Response:** Opponent answers "miss", or "hit" **and names the ship that was hit** (e.g. "Hit. Cruiser."). Hits are marked red, misses white, on the shooter's Target Grid; the defender marks the hit on their Ocean Grid. After a hit or a miss, the turn is over.
 - **Sinking:** When every cell of a ship is hit, it is sunk, and the owner must announce which ship was sunk.
 - **Win:** First player to sink all 5 opposing ships wins.
-- **Out of scope (explicitly):** Salvo (an official variation in the Hasbro PDF, excluded from MVP; see 6.1), extra turn on hit, power-ups, custom fleets, custom board sizes, diagonal placement.
+- **Out of scope (explicitly):** Salvo (an official variation in the Hasbro PDF, excluded from MVP; see 6.1), extra turn on hit, power-ups outside Captain's Gambit mode (1A), custom fleets, custom board sizes, diagonal placement.
 
 Digital-only decisions the physical rules don't cover (must be answered at Gate 2):
 - Who goes first? (PDF: "Decide who will go first." Digital: human first, coin flip, or choice?)
 - Firing at an already-fired cell: blocked in UI and rejected by engine (not a wasted turn).
 - Forfeit / restart mid-game: allowed? Counts as loss?
+
+## 1A. Captain's Gambit Mode (optional toggle, in v0.1)
+
+Decided 2026-09-26. With the toggle **Off** (default), the game is exactly Section 1: classic Hasbro. With it **On**, each side picks one of four pirate captains, and each captain carries one special power (a **Gambit**) usable **once per game**. Everything in Section 1 still applies except where a Gambit explicitly overrides it for that one turn.
+
+### 1A.1 Toggle
+- Start screen: switch "Captain's Gambit: Off / On", default **Off**. Persist the last choice in localStorage.
+- Engine config: `rules.gambit: boolean` (same single-rules-config pattern as 6.1). With `gambit: false`, no Gambit code path can run; classic tests must pass unchanged.
+- Gambit On adds a **Choose Your Captain** screen between Start and Placement.
+
+### 1A.2 Gambit rules (apply to every captain)
+- Once per game per side. Using a Gambit **is** that side's turn (no normal shot that turn).
+- The Gambit is announced to the opponent by name before it resolves ("Cap'n invokes Powder Keg!").
+- Every shot a Gambit fires follows normal rules: reported as miss, or hit with the ship named; sinks announced; already-fired cells cannot be fired again.
+- If a Gambit's shots sink the last ship, the game ends immediately.
+- A Gambit button shows three states: Ready, Unavailable (with the reason, e.g. "Only in open water"), Spent.
+- Gambits never reveal hidden information beyond what the power states.
+
+### 1A.3 The four captains and their Gambits
+
+Captain names are **placeholders**; final names are chosen during the build (see 1A.5). Captain IDs are stable in code.
+
+| ID | Archetype | Gambit | Exact effect | Restriction |
+|----|-----------|--------|--------------|-------------|
+| `captain-broadside` | Gunner | **Broadside** (triple shot) | Fire 3 shots at 3 different untried cells, anywhere, resolved in the order chosen; each result announced | All 3 cells must be untried. Stops early if the game is won |
+| `captain-powderkeg` | Demolitions | **Powder Keg** (small blast radius) | Plus-shaped blast: target cell + 4 orthogonal neighbours (clipped at the board edge); every in-bounds cell is fired at | **Open water only:** every in-bounds blast cell must be untried, and no blast cell may touch (orthogonally) a known hit on a ship not yet sunk. So it cannot be used to finish a ship already found |
+| `captain-crowsnest` | Navigator | **Crow's Nest** (scout) | Choose a 3x3 area; learn how many ship cells are in it (a number only: no positions, no names). No damage | Area clipped at edges; counts cells already hit too |
+| `captain-ghostship` | Trickster | **Ghost Ship** (relocate) | Move one of your own ships that has **not been hit** to a new legal position | New position must be legal (Section 1) and may not cover any cell the opponent has already fired at. So the opponent's misses stay true |
+
+Open question for the build (defaults shown): Powder Keg shape is a plus (5 cells), not 3x3 (9 cells), to keep it balanced against Broadside's 3.
+
+### 1A.4 AI captain
+- In Gambit mode the AI picks a random captain (different from the player's if possible) and shows it in its portrait frame.
+- AI uses its Gambit with a simple, testable rule, using only information a human would have:
+  - Broadside: in hunt mode (no damaged ship pending) after turn 10, on the 3 best hunt cells.
+  - Powder Keg: in hunt mode, on the legal open-water cell whose blast covers the most untried cells.
+  - Crow's Nest: in hunt mode on its first eligible turn after turn 5, on the 3x3 with the most untried cells; the count then weights its hunting.
+  - Ghost Ship: the first time one of its ships is hit, it relocates its largest un-hit ship.
+- Medium AI must handle Ghost Ship correctly: relocation only lands on cells the AI has not fired at, so its misses stay valid.
+
+### 1A.5 Captain identity, naming brief, portraits
+- **Naming (done by Devin during the build):** four original pirate names, pronounceable, distinct first letters, fitting each archetype. No real people, no existing fictional or trademarked characters (e.g. no Jack Sparrow, Davy Jones, Hook). Each captain also gets: a flag (colour + emblem), a one-line bio, and short voice lines for select, hit, miss, sink, Gambit, victory, defeat.
+- **Portraits:** each captain has an animated bust portrait in a framed panel, **in the spirit of** StarCraft / Warcraft unit portraits (the talking-head window). Original art only; never copy Blizzard assets or characters.
+  - States: idle loop (breathing, blinking, a signature detail such as a parrot, eye-patch glint, or smoking pipe), talking (when a voice line appears), reacting to hits taken, celebrating hits made, Gambit wind-up, victory, defeat.
+  - Tech: layered SVG + CSS keyframe animation (crisp at any size, small, no asset pipeline). Budget ≤ 40 KB per captain, lazy-loaded only in Gambit mode. `prefers-reduced-motion` shows static portraits.
+  - Both portraits are visible in battle: player's captain by the Ocean Grid, AI's captain by the Target Grid.
+
+## 1B. Pirate Theme (applies to every mode)
+
+Decided 2026-09-26: **everything is pirate themed**, in Classic and Gambit modes alike. Rules, board size and ship lengths are unchanged; only presentation changes.
+- **Ship display names:** Man-o'-War (5), Galleon (4), Frigate (3), Brigantine (3), Sloop (2). The engine keeps the Hasbro IDs; the UI maps them. The rule "name the ship on every hit" uses the pirate name ("Hit. Frigate.").
+- **Copy:** pirate voice everywhere, readable first, flavour second. Examples: Start → "Set Sail"; Fire → "Fire the cannons!"; miss → "Splash! Nothing but brine."; hit → "Direct hit! Their Frigate takes a ball!"; sink → "Ye sank me Galleon!"; win → "Victory! The seas be yours."; loss → "Down to Davy Jones' locker..."; Rematch → "Another voyage".
+- **Visuals:** aged parchment sea chart for grids, wood and rope frames, brass accents, compass rose; hit = red X with smoke, miss = white splash ring (still distinguishable without colour). Difficulty names: Easy = "Deckhand", Medium = "Buccaneer".
+- **Audio (Could):** cannon, splash, creaking wood; muted by default with a toggle.
+- **Accessibility and clarity win over theme:** ARIA labels and the move log use plain coordinates alongside flavour text (e.g. "B7: hit, Frigate").
 
 ## 2. The Orchestrator
 
@@ -119,7 +174,7 @@ Non-functional
 ### Role 3: UX/UI Designer (look and feel)
 
 Functional
-- Screens: Start (difficulty) → Placement → Battle → Game Over (winner, stats, rematch).
+- Screens: Start (difficulty + Captain's Gambit toggle) → Choose Your Captain (Gambit mode only) → Placement → Battle → Game Over (winner, stats, rematch).
 - Placement interaction: click ship, click cell, "R" key / button to rotate, ghost preview showing valid (green) vs invalid (red + pattern) positions.
 - Battle layout: both grids visible (desktop side by side; mobile stacked, Target Grid on top).
 - Feedback: hit / miss / sunk visuals, turn indicator, message log ("AI fires at C-4: Miss").
@@ -128,7 +183,7 @@ Functional
 Non-functional
 - Accessibility: markers distinguishable without color (X for hit, dot for miss); keyboard play (arrow keys + Enter); ARIA labels on cells ("B7, hit"); WCAG AA contrast.
 - Responsive from 360 px phone width to desktop.
-- Visual style: clean naval theme; no heavy asset downloads.
+- Visual style: pirate theme throughout (Section 1B); animated captain portraits in Gambit mode (1A.5); no heavy asset downloads (SVG + CSS, no raster sprite sheets).
 - 60 fps animations; respects `prefers-reduced-motion`.
 
 ### Role 4: Backend / Systems Engineer (engine, authority, scale)
@@ -225,13 +280,20 @@ The prompt says "play **online** against an AI". Both options satisfy that; the 
 | F16 | Hard (probability) AI | Could |
 | F17 | Resume after refresh | Could |
 | F18 | Adaptive Hard: weight Hard's probability map by this player's past ship placements (per-cell counts in localStorage; a Bayesian prior, no ML model) | Could |
+| F19 | Pirate theme across all screens, copy, and ship display names (1B) | Must |
+| F20 | Captain's Gambit toggle, default Off; Off = pure classic (1A.1) | Must |
+| F21 | Choose Your Captain screen: 4 captains, each with one once-per-game Gambit (1A.3) | Must |
+| F22 | Gambits: Broadside, Powder Keg (open water only), Crow's Nest, Ghost Ship, enforced by the engine (1A.2–1A.3) | Must |
+| F23 | AI picks a captain and uses its Gambit by rule (1A.4) | Must |
+| F24 | Animated captain portraits: idle loop + reaction states (1A.5) | Must (idle), Should (all reaction states) |
+| F25 | Captain voice lines and pirate sound effects | Could |
 
 ## 6. Non-Functional Requirements (consolidated)
 
 | ID | Category | Target |
 |----|----------|--------|
 | N1 | Availability | Public HTTPS URL up throughout review; no login |
-| N2 | Performance | Playable < 2 s; each action < 100 ms locally; AI move ≤ 1 s incl. delay |
+| N2 | Performance | Playable < 2 s; each action < 100 ms locally; AI move ≤ 1 s incl. delay; portraits lazy-loaded (≤ 40 KB each), 60 fps animation |
 | N3 | Correctness | Engine unit-test coverage ≥ 90%; all Section 3 Role 6 cases pass |
 | N4 | Consistency | Single source of truth for state; UI derived from state; no double shots |
 | N5 | Security / fairness | AI never uses hidden info; server mode never leaks AI fleet |
@@ -244,7 +306,7 @@ The prompt says "play **online** against an AI". Both options satisfy that; the 
 
 ### 6.1 Stretch / Debrief-Only Variants (NOT implemented)
 
-These are **talking points for the debrief only**. They were considered and deliberately excluded to avoid scope creep (see the "Scope creep" row in the Risk Register). The MVP ships classic Hasbro rules only.
+These are **talking points for the debrief only**. They were considered and deliberately excluded to avoid scope creep (see the "Scope creep" row in the Risk Register). Beyond classic Hasbro rules, the only extension in v0.1 is Captain's Gambit mode (1A), which replaced the earlier "one-time Super Shot" idea.
 
 Optionality design: every variant is a named flag on a single rules config (e.g. `rules.variants.salvo`), **all defaulting to Off**. The MVP builds no variant logic; it only keeps rules in one config object so a variant could be switched on later without rewriting the engine. The toggles on this planning page record the scope decision for each variant (Off = excluded); switching one On means it must be added to the Decision Log and re-approved at Gate 5 before any work starts.
 
@@ -254,7 +316,6 @@ Optionality design: every variant is a named flag on a single rules config (e.g.
 | `salvoHiddenHits` | Salvo: undisclosed hits | Official Hasbro sub-variant (PDF p.3) | With Salvo on, the defender doesn't disclose which ships were hit | Off |
 | `hotColdHints` | Hot/Cold hints | House rule | A miss also reports whether a ship is adjacent ("warm") | Off |
 | `fogRevealOnSink` | Fog-of-war reveal on sink | House rule | When a ship is sunk, its full outline is revealed on the shooter's Target Grid | Off |
-| `superShot` | One-time Super Shot | House rule | Once per game, fire a 3x3 (or plus-shaped) blast in a single turn | Off |
 
 Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target logic; hints and reveals change the probability model), which is part of why they stay out of scope.
 
@@ -267,6 +328,9 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 - [ ] `docs/BUGS.md` lists every bug found with root cause and fix.
 - [ ] Public repo with README (overview, how to play, how to run, architecture, trade-offs).
 - [ ] Live URL tested in an incognito window.
+- [ ] Classic mode (Gambit Off) passes every classic test unchanged.
+- [ ] Each of the 4 Gambits tested in the engine (legal, illegal, once-only), and a full Gambit-mode game played with each captain.
+- [ ] Captain names, flags and portraits are original (no copyrighted characters or assets).
 
 ## 8. Risk Register
 
@@ -277,6 +341,10 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | AI cheats or looks dumb | Med | Med | AI only uses shot results; test Medium hunt/target behavior |
 | Subtle rule bugs (sink detection, repeat shots) | High | Med | Engine TDD before UI |
 | Mobile layout broken | Med | Med | Test at 360 px early |
+| Captain's Gambit + portraits push v0.1 past the deadline | High | Med | Build order: classic engine → Gambit engine → AI → UI → theme → portraits; classic stays shippable at every step; portraits start as static SVG, animation added last |
+| Gambits break classic rules or each other | High | Med | `rules.gambit` flag; classic suite must pass with Gambit Off; engine tests per Gambit incl. edge cases (edge-clipped blast, Ghost Ship onto fired cells, Broadside winning mid-volley) |
+| Portrait art looks like copied IP | Med | Low | Original SVG art "in the spirit of" RTS portraits; naming brief bans existing characters |
+| Theme hurts readability/accessibility | Med | Med | Plain coordinates in ARIA labels and move log; non-colour markers kept |
 | Can't explain AI-generated code | High | Med | Review every diff; keep stack simple |
 | Bug doc thin | Med | Med | Log bugs as they're found, not at the end |
 
@@ -287,7 +355,7 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 1 | Audience | Interview panel (engineers) judging correctness, debugging rigor, UX polish | Orchestrator | 2026-09-26 |
 | 2 | Mode | Human vs AI, single-player, online (hosted URL) | Orchestrator | 2026-09-26 |
 | 3 | Platform | Web browser, responsive (desktop + mobile) | Orchestrator | 2026-09-26 |
-| 4 | MVP scope | v0.1 = all "Must" requirements, Easy + Medium AI; Hard (F16) and Adaptive Hard (F18) later | Orchestrator | 2026-09-26 |
+| 4 | MVP scope | v0.1 = all "Must" requirements (incl. pirate theme and Captain's Gambit), Easy + Medium AI; Hard (F16) and Adaptive Hard (F18) later | Orchestrator | 2026-09-26 |
 | 5 | Constraints | Due before onsite; free hosting; stack explainable line by line | Orchestrator | 2026-09-26 |
 | 6 | Who fires first | Human fires first (default; revisit) | Game Designer | 2026-09-26 |
 | 7 | Placement modes | Manual (click + rotate) and Randomize | Game Designer | 2026-09-26 |
@@ -296,3 +364,7 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 10 | Language / framework | TypeScript + Vite, no UI framework | Frontend Engineer | 2026-09-26 |
 | 11 | Hosting | Vercel | DevOps | 2026-09-26 |
 | 12 | Test runner / CI | Vitest + ESLint, GitHub Actions | QA | 2026-09-26 |
+| 13 | Captain's Gambit mode | In v0.1, behind a toggle, default Off (1A) | Orchestrator | 2026-09-26 |
+| 14 | AI gets a captain | Yes, random captain, rule-based Gambit use (1A.4) | Game Designer | 2026-09-26 |
+| 15 | Theme | Pirate theme everywhere; pirate ship display names (1B) | UX Designer | 2026-09-26 |
+| 16 | Captain names | Chosen by Devin during the build per naming brief (1A.5) | Game Designer | |

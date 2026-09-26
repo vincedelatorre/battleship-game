@@ -63,11 +63,11 @@ Done when: Decision Log rows 9–12 filled.
 
 ## Phase 3: Design Lock (Gate 4)
 
-### Step 3.1 — Wireframe four screens
-Start → Placement → Battle → Game Over. Sketch on paper or ask Devin for a static HTML mock (no logic).
+### Step 3.1 — Wireframe five screens
+Start → Choose Your Captain (Gambit mode only) → Placement → Battle → Game Over. Sketch on paper or ask Devin for a static HTML mock (no logic).
 
 Prompt:
-> Create a static, non-functional HTML/CSS mockup of a Battleship game with four screens: Start (difficulty select: Easy, Medium), Placement (10x10 ocean grid, ship list, Rotate and Randomize buttons), Battle (Target Grid and Ocean Grid side by side on desktop, stacked on mobile under 700px, turn indicator, move log, fleet status), Game Over (winner, stats, Rematch). Rows A–J, columns 1–10. Hits shown with X, misses with a dot, so they are distinguishable without color. No JavaScript game logic.
+> Create a static, non-functional HTML/CSS mockup of a pirate-themed Battleship game (requirements §1B: parchment sea chart, wood/rope/brass, pirate copy, pirate ship names) with five screens: Start ("Set Sail"; difficulty Deckhand/Buccaneer; "Captain's Gambit: Off/On" switch), Choose Your Captain (4 captain cards with placeholder names, portrait frame, Gambit name and one-line description; shown only when Gambit is On), Placement (10x10 ocean grid, ship list, Rotate and Randomize buttons), Battle (Target Grid and Ocean Grid side by side on desktop, stacked on mobile under 700px, turn indicator, move log, fleet status, and in Gambit mode a captain portrait frame beside each grid plus a Gambit button with Ready/Unavailable/Spent states), Game Over (winner, stats, Rematch). Rows A–J, columns 1–10. Hits shown with X, misses with a dot, so they are distinguishable without color. No JavaScript game logic.
 
 Done when: you approve the layout on desktop and at 360 px width.
 
@@ -100,7 +100,11 @@ Prompt:
 Prompt:
 > Implement fire(state, player, row, col) in src/engine with tests first. It must: return miss, or hit with the name of the ship that was hit (Hasbro rules: the defender names the ship on every hit); return sunk with the ship name when the last cell of a ship is hit; set the winner when all 5 ships are sunk; reject out-of-bounds shots, repeat shots on the same cell, shots out of turn, and any shot after the game is over, without changing state. Alternate turns after every valid shot (one shot per turn, no extra turn on hit).
 
-Done when: all engine tests pass; coverage ≥ 90% on src/engine.
+### Step 5.4 — Captain's Gambit engine + tests
+Prompt:
+> Add Captain's Gambit to src/engine exactly as specified in requirements §1A.1–1A.3, tests first. Add `rules.gambit` (default false) to the rules config; with it false no Gambit code path runs and every existing test passes unchanged. Add the four captain IDs (captain-broadside, captain-powderkeg, captain-crowsnest, captain-ghostship) with placeholder display names, and a `useGambit(state, player, params)` that: counts as the player's whole turn; is usable once per game; resolves Broadside (3 distinct untried cells, in order, stop if game won), Powder Keg (plus-shaped blast clipped at edges; rejected unless every in-bounds cell is untried and none touches a known hit on an un-sunk ship), Crow's Nest (3x3 clipped; returns only the count of ship cells), Ghost Ship (move one of your un-hit ships to a legal position covering no cell the opponent has fired at). Every shot fired by a Gambit reports miss / hit with ship name / sunk like a normal shot. Illegal uses return a reason and change no state. Test each Gambit's legal case, each restriction, once-only, board-edge clipping, and a Gambit that wins the game.
+
+Done when: all engine tests pass (classic suite unchanged with Gambit off); coverage ≥ 90% on src/engine.
 
 ---
 
@@ -114,7 +118,11 @@ Prompt:
 Prompt:
 > Add a Medium AI in src/ai using hunt/target: hunt randomly (optionally parity/checkerboard) until a hit; then target adjacent cells; once two hits line up, continue along that line in both directions; because Hasbro rules name the ship on every hit, group hits by ship name and target each damaged ship separately; when a ship is reported sunk, clear only that ship's hits and keep targeting any other damaged ship before resuming the hunt; use the lengths of ships still afloat to bound the search. Uses only shot results. Add tests for: following a line after two hits, reversing direction at a miss, two adjacent hits on different ships treated as separate targets, continuing to chase a damaged ship after sinking a different one, returning to hunt after a sink, and a simulation showing Medium averages fewer shots to win than Easy over 500 games.
 
-### Step 6.3 (optional) — Hard AI (probability density)
+### Step 6.3 — AI captain and Gambit use
+Prompt:
+> In src/ai, add Gambit-mode behaviour per requirements §1A.4: the AI picks a random captain (different from the player's if possible) and decides when to use its Gambit with the stated rules (Broadside after turn 10 in hunt mode; Powder Keg on the legal open-water cell covering the most untried cells; Crow's Nest after turn 5 in hunt mode, then weights hunting by the count; Ghost Ship relocates its largest un-hit ship the first time one of its ships is hit). Use only information a human would have. Make Medium target logic stay correct after the player uses Ghost Ship. Tests: each decision rule triggers when expected, the AI never attempts an illegal Gambit, never uses it twice, and full simulated Gambit games always terminate with a winner.
+
+### Step 6.4 (optional) — Hard AI (probability density)
 Only after MVP is done and deployed.
 
 ---
@@ -133,14 +141,23 @@ Only after MVP is done and deployed.
 ### Step 7.4 — Accessibility pass
 > Make the game fully keyboard-playable (arrow keys move a focus cursor, Enter fires/places, R rotates), add ARIA labels to every cell (e.g. "B7, miss"), ensure WCAG AA contrast, respect prefers-reduced-motion.
 
-Done when: full game playable with mouse, touch, and keyboard only.
+### Step 7.5 — Pirate theme pass
+> Apply the pirate theme from requirements §1B across every screen: parchment sea-chart grids, wood/rope/brass frames, compass rose, pirate copy for all messages, difficulty names Deckhand/Buccaneer, and pirate ship display names (Man-o'-War 5, Galleon 4, Frigate 3, Brigantine 3, Sloop 2) mapped from the engine's Hasbro IDs in the UI layer only. Keep hit/miss markers distinguishable without colour and keep plain coordinates in ARIA labels and the move log (e.g. "B7: hit, Frigate"). No raster images; SVG and CSS only.
+
+### Step 7.6 — Captain's Gambit UI
+> Build the Gambit UI per requirements §1A: the "Captain's Gambit" switch on Start (default Off, remembered in localStorage), the Choose Your Captain screen (4 cards), and in Battle a Gambit button with Ready / Unavailable (with reason) / Spent states, a targeting preview for each Gambit (3 picks for Broadside, plus-shaped blast preview for Powder Keg with invalid cells flagged, 3x3 box for Crow's Nest, ship drag/rotate for Ghost Ship), announcements for both sides, and the AI's captain and Gambit use shown in the log. All legality comes from the engine.
+
+### Step 7.7 — Name the captains and animate their portraits
+> Name the four captains following the naming brief in requirements §1A.5: original pirate names, pronounceable, distinct first letters, matching each archetype (Gunner, Demolitions, Navigator, Trickster); no real people or existing fictional/trademarked characters. For each captain write a flag (colour + emblem), a one-line bio, and short voice lines (select, hit, miss, sink, Gambit, victory, defeat). Then create an original animated bust portrait for each in the spirit of StarCraft/Warcraft unit portraits, as layered inline SVG with CSS keyframes: idle loop (breathing, blinking, one signature detail), talking, hit taken, hit made, Gambit wind-up, victory, defeat. ≤ 40 KB per captain, lazy-loaded only in Gambit mode, static under prefers-reduced-motion. Update requirements Decision Log row 16 with the chosen names.
+
+Done when: full game playable with mouse, touch, and keyboard only, in both Classic and Gambit modes, with every captain.
 
 ---
 
 ## Phase 8: Debugging & Bug Log (Deliverable D2)
 
 ### Step 8.1 — Structured test pass
-Run every case in requirements Section 3, Role 6. Play at least 10 full games (win and lose, Easy and Medium, desktop and phone).
+Run every case in requirements Section 3, Role 6. Play at least 10 full classic games (win and lose, Easy and Medium, desktop and phone), plus at least one Gambit-mode game with each of the 4 captains.
 
 ### Step 8.2 — Log each bug in docs/BUGS.md
 Template per bug:
@@ -156,7 +173,7 @@ Template per bug:
 Prompt to use when you find one:
 > Bug: <symptom and repro steps>. First write a failing test that reproduces it, then find the root cause, fix it, and confirm the test passes. Explain the root cause in one paragraph I can paste into docs/BUGS.md.
 
-Common Battleship bugs to hunt for: double-click fires twice; AI fires same cell twice; sink not detected when ships touch; turn doesn't pass after a sink; game continues after win; rotation lets ship hang off board; Rematch keeps old state; mobile grid overflows; stale closures firing shots after game over.
+Common Battleship bugs to hunt for: double-click fires twice; AI fires same cell twice; sink not detected when ships touch; turn doesn't pass after a sink; game continues after win; rotation lets ship hang off board; Rematch keeps old state; mobile grid overflows; stale closures firing shots after game over. Gambit-mode bugs to hunt for: Gambit usable twice; Gambit plus a normal shot in one turn; Powder Keg allowed next to a found ship or on fired cells; edge-clipped blast firing off-board; Broadside continuing after the win; Crow's Nest leaking positions or ship names; Ghost Ship moving a hit ship or onto fired cells; AI Medium chasing a ship that ghosted away; Gambit state surviving Rematch; Classic mode showing any Gambit UI.
 
 ---
 
