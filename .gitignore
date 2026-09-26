@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.vercel/
+.env*
+.DS_Store
+review-shots/

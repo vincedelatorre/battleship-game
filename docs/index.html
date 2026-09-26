@@ -1,0 +1,1047 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%93%3C/text%3E%3C/svg%3E">
+<title>Battleship — Pre-Build Planning</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#f2f6fa;--panel:#ffffff;--ink:#152637;--muted:#54697d;--line:#c9d6e2;
+  --accent:#17537e;--accent-ink:#ffffff;--accent-soft:#e3edf5;--code-bg:#e9eff5;
+  --mark:#ffe08a;--ok:#1c7a4a;--link:#17537e;
+  --note-bg:#fdf3dc;--note-line:#a97c10;--note-ink:#7a5a08;
+}
+[data-theme="dark"]{
+  --bg:#0b1620;--panel:#12212f;--ink:#d8e4ee;--muted:#93a8ba;--line:#274155;
+  --accent:#86bde0;--accent-ink:#0b1620;--accent-soft:#19303f;--code-bg:#0e1c29;
+  --mark:#6d5b00;--ok:#5ecb90;--link:#9cccec;
+  --note-bg:#292217;--note-line:#d4a63c;--note-ink:#e3bd62;
+}
+html{scroll-padding-top:76px}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--link)}
+a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visible,label:focus-within{
+  outline:2px solid var(--accent);outline-offset:2px}
+.top{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line)}
+.top-inner,.layout,.foot{max-width:1240px;margin:0 auto}
+.top-inner{padding:10px 16px;display:flex;flex-wrap:wrap;
+  align-items:center;gap:10px 16px}
+.site-title{font-size:1.15rem;margin:0;font-weight:700;letter-spacing:.01em}
+.site-title .sub{font-weight:400;color:var(--muted);font-size:.85rem}
+.tabs{display:flex;gap:2px}
+.tab{border:0;background:none;color:var(--ink);font:inherit;font-weight:600;cursor:pointer;
+  padding:8px 12px;border-bottom:3px solid transparent}
+.tab:hover,.ghost:hover,.copy-btn:hover{background:var(--accent-soft)}
+.tab[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--accent)}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto}
+#search{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;
+  background:var(--bg);color:var(--ink);min-width:170px}
+.search-count{font-size:.8rem;color:var(--muted);min-width:70px}
+.ghost,.copy-btn{font:inherit;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink);cursor:pointer}
+.ghost{font-size:.85rem;padding:6px 10px;border-radius:6px}
+.layout{padding:20px 16px 60px;display:grid;
+  grid-template-columns:250px minmax(0,1fr);gap:28px}
+.sidebar{position:sticky;top:76px;align-self:start;max-height:calc(100vh - 96px);
+  overflow:auto;font-size:.88rem}
+.toc{border-left:2px solid var(--line);padding-left:0}
+.toc ul{list-style:none;margin:0;padding:0}
+.toc li{margin:0}
+.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 10px;
+  border-left:2px solid transparent;margin-left:-2px}
+.toc a:hover{color:var(--ink);background:var(--accent-soft)}
+.toc a.current{color:var(--accent);border-left-color:var(--accent);font-weight:600}
+.toc ul ul a{padding-left:24px}
+.toc ul ul ul a{padding-left:38px}
+.panel-tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
+.progress{flex:1;min-width:120px;max-width:340px;height:8px;border-radius:4px;
+  background:var(--line);overflow:hidden}
+.progress .bar{height:100%;width:0;background:var(--ok);transition:width .2s}
+.progress-label{font-size:.82rem;color:var(--muted)}
+.doc-flow h1.sec-head{font-size:1.5rem}
+.doc-flow h2.sec-head{font-size:1.22rem}
+.doc-flow h3.sec-head{font-size:1.05rem}
+.sec-head{scroll-margin-top:76px;margin:1.1em 0 .5em;line-height:1.3}
+.md-section>.md-body{margin-left:2px}
+.md-section.collapsed>.md-body{display:none}
+.caret{border:0;background:none;color:var(--muted);cursor:pointer;font:inherit;
+  padding:0;margin-right:6px;line-height:1}
+.caret::before{content:"\25B8";display:inline-block;transition:transform .15s}
+.md-section:not(.collapsed)>.sec-head>.caret::before{transform:rotate(90deg)}
+.caret:hover{color:var(--accent)}
+p{margin:.55em 0}
+ul,ol{margin:.5em 0;padding-left:1.6em}
+li{margin:.25em 0}
+li.task{list-style:none;margin-left:-1.4em}
+li.task label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+li.task input{margin-top:4px}
+input[type="checkbox"].persist{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none}
+h3 .step-check{margin-right:8px;vertical-align:middle}
+.table-wrap{overflow-x:auto;margin:.7em 0}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft)}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px;font-size:.9em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:8px;
+  padding:12px 14px;overflow-x:auto;position:relative}
+pre code{background:none;padding:0}
+blockquote.prompt{margin:.7em 0;padding:10px 14px;border-left:4px solid var(--accent);
+  background:var(--accent-soft);border-radius:0 8px 8px 0;position:relative}
+blockquote.prompt::before{content:"PROMPT";display:block;font-size:.68rem;
+  font-weight:700;letter-spacing:.08em;color:var(--accent);margin-bottom:4px}
+blockquote.note{margin:.7em 0;padding:10px 14px;border-left:4px solid var(--note-line);
+  background:var(--note-bg);border-radius:0 8px 8px 0}
+blockquote.note::before{content:"NOTE";display:block;font-size:.68rem;
+  font-weight:700;letter-spacing:.08em;color:var(--note-ink);margin-bottom:4px}
+/* variant toggles (requirements 6.1) */
+.variant-cell{white-space:nowrap}
+.switch{display:inline-flex;align-items:center;gap:8px;font:inherit;font-size:.85rem;
+  padding:3px 10px 3px 4px;border:1px solid var(--line);border-radius:14px;
+  background:var(--panel);color:var(--ink);cursor:pointer}
+.sw-track{width:34px;height:18px;border-radius:9px;background:var(--line);
+  position:relative;flex:none;transition:background .15s}
+.sw-thumb{position:absolute;top:1px;left:2px;width:14px;height:14px;border-radius:50%;
+  background:var(--panel);border:1px solid var(--muted);transition:left .15s}
+.switch[aria-checked="true"] .sw-track{background:var(--accent)}
+.switch[aria-checked="true"] .sw-thumb{left:17px;background:#fff;border-color:transparent}
+.switch[disabled]{opacity:.55;cursor:not-allowed}
+.sw-label{min-width:22px;font-weight:600}
+.var-hint{display:block;font-size:.75rem;color:var(--muted);margin-top:4px}
+.var-print{display:none}
+.variant-warning{margin:.6em 0;padding:10px 14px;border:1px solid var(--note-line);
+  border-left-width:4px;border-radius:8px;background:var(--note-bg);
+  color:var(--ink);font-weight:600}
+.variant-chip{font-size:.78rem;font-weight:600;color:var(--accent);
+  border:1px solid var(--line);border-radius:999px;padding:3px 10px;
+  background:var(--accent-soft)}
+hr{border:0;border-top:1px solid var(--line);margin:1.4em 0}
+mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 1px}
+.copyable{position:relative}
+.copy-btn{position:absolute;top:6px;right:6px;font-size:.75rem;
+  padding:3px 8px;border-radius:5px;z-index:2}
+.search-hidden{display:none!important}
+body.searching .md-section.collapsed>.md-body{display:block}
+/* gates stepper */
+.gate-stepper{list-style:none;padding-left:0;margin:.8em 0}
+.gate-item{position:relative;padding:4px 0 4px 36px}
+.gate-item::before{content:"";position:absolute;left:46px;top:26px;bottom:-11px;
+  width:2px;background:var(--line)}
+.gate-item:last-child::before{display:none}
+.gate-label{display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+input[type="checkbox"].gate-check{appearance:none;-webkit-appearance:none;
+  width:22px;height:22px;flex:none;border:2px solid var(--accent);
+  border-radius:50%;background:var(--panel);position:relative;cursor:pointer;
+  margin:2px 0 0}
+input[type="checkbox"].gate-check:checked{background:var(--accent)}
+input[type="checkbox"].gate-check:checked::after{content:"\2713";position:absolute;
+  inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--accent-ink);font-size:13px;font-weight:700}
+.gate-item.done .gate-text{opacity:.6}
+.gate-item.done .gate-text strong{color:var(--ok)}
+/* decision log */
+.decision-table input.dec-input{width:100%;font:inherit;padding:4px 6px;
+  border:1px dashed var(--line);border-radius:4px;background:var(--panel);color:var(--ink)}
+.decision-table input.dec-input:focus{border-style:solid;border-color:var(--accent)}
+.dec-actions{display:flex;gap:10px;margin:.5em 0}
+.foot{padding:14px 16px 30px;font-size:.8rem;
+  color:var(--muted);border-top:1px solid var(--line)}
+@media (max-width:1200px){
+  .tools{flex-basis:100%;margin-left:0}
+  #search{flex:1 1 auto;max-width:420px}
+  #reset{margin-left:auto}
+}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr;gap:16px}
+  .sidebar{position:static;max-height:220px;border:1px solid var(--line);
+    border-radius:8px;padding:8px;background:var(--panel)}
+  .tools{margin-left:0}
+  .site-title{width:100%}
+}
+@media (max-width:420px){
+  .top-inner{padding:8px 10px}
+  .layout{padding:14px 10px 50px}
+  #search{min-width:120px;flex:1}
+}
+@media print{
+  .top,.sidebar,.panel-tools,.copy-btn,.caret,.dec-actions,.foot{display:none!important}
+  .layout{display:block;padding:0}
+  .panel{display:block!important;page-break-before:auto}
+  .panel+.panel{page-break-before:always}
+  .md-section,.md-body{display:block!important}
+  .search-hidden{display:revert!important}
+  body{background:#fff;color:#000}
+  a{color:#000}
+  .decision-table input.dec-input{border:0;border-bottom:1px solid #999}
+  .switch,.var-hint{display:none!important}
+  .var-print{display:inline!important}
+  .variant-warning{border-color:#999;background:#fff}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <h1 class="site-title">Battleship <span class="sub">— pre-build planning</span></h1>
+    <nav class="tabs" role="tablist" aria-label="Documents">
+      <button class="tab" id="tab-requirements" role="tab" data-panel="requirements"
+        aria-selected="true" aria-controls="panel-requirements">Requirements &amp; Discovery</button>
+      <button class="tab" id="tab-manual" role="tab" data-panel="manual"
+        aria-selected="false" aria-controls="panel-manual">Build Manual</button>
+    </nav>
+    <div class="tools">
+      <input id="search" type="search" placeholder="Search docs…" aria-label="Search documents">
+      <span id="search-count" class="search-count" aria-live="polite"></span>
+      <button id="reset" type="button" class="ghost">Reset progress</button>
+      <button id="theme-toggle" type="button" class="ghost">Dark theme</button>
+    </div>
+  </div>
+</header>
+<div class="layout">
+  <aside class="sidebar">
+    <nav id="toc-requirements" class="toc" aria-label="Requirements contents"><ul><li><a href="#req-0-the-assignment-source-of-truth">0. The Assignment (source of truth)</a></li><li><a href="#req-1-game-rules-baseline-hasbro-classic-no-extra-rules">1. Game Rules Baseline (Hasbro classic, no extra rules)</a></li><li><a href="#req-2-the-orchestrator">2. The Orchestrator</a><ul><li><a href="#req-2-1-five-gating-questions-answered-before-anything-else">2.1 Five gating questions (answered before anything else)</a></li><li><a href="#req-2-2-orchestrator-artifacts">2.2 Orchestrator artifacts</a></li><li><a href="#req-2-3-gates-sequence">2.3 Gates (sequence)</a></li></ul></li><li><a href="#req-3-roles-and-their-questions">3. Roles and Their Questions</a><ul><li><a href="#req-role-1-product-manager-why-for-whom">Role 1: Product Manager (why, for whom)</a></li><li><a href="#req-role-2-game-designer-the-rules">Role 2: Game Designer (the rules)</a></li><li><a href="#req-role-3-ux-ui-designer-look-and-feel">Role 3: UX/UI Designer (look and feel)</a></li><li><a href="#req-role-4-backend-systems-engineer-engine-authority-scale">Role 4: Backend / Systems Engineer (engine, authority, scale)</a></li><li><a href="#req-role-5-frontend-client-engineer">Role 5: Frontend / Client Engineer</a></li><li><a href="#req-role-6-qa-security-devops">Role 6: QA, Security &amp; DevOps</a></li></ul></li><li><a href="#req-4-key-architecture-decisions-for-gate-3">4. Key Architecture Decisions (for Gate 3)</a><ul><li><a href="#req-4-1-client-only-vs-server-authoritative">4.1 Client-only vs server-authoritative</a></li><li><a href="#req-4-2-stack-decided-2026-09-26">4.2 Stack (decided 2026-09-26)</a></li></ul></li><li><a href="#req-5-functional-requirements-consolidated">5. Functional Requirements (consolidated)</a></li><li><a href="#req-6-non-functional-requirements-consolidated">6. Non-Functional Requirements (consolidated)</a><ul><li><a href="#req-6-1-stretch-debrief-only-variants-not-implemented">6.1 Stretch / Debrief-Only Variants (NOT implemented)</a></li></ul></li><li><a href="#req-7-definition-of-done-mvp">7. Definition of Done (MVP)</a></li><li><a href="#req-8-risk-register">8. Risk Register</a></li><li><a href="#req-9-decision-log-fill-in">9. Decision Log (fill in)</a></li></ul></nav>
+    <nav id="toc-manual" class="toc" aria-label="Build manual contents" hidden><ul><li><a href="#man-phase-0-environment-repo-setup">Phase 0: Environment &amp; Repo Setup</a><ul><li><a href="#man-step-0-1-install-tools">Step 0.1 — Install tools</a></li><li><a href="#man-step-0-2-create-the-public-repo">Step 0.2 — Create the public repo</a></li><li><a href="#man-step-0-3-commit-the-planning-docs-first">Step 0.3 — Commit the planning docs first</a></li></ul></li><li><a href="#man-phase-1-discovery-rules-lock-gates-1-2">Phase 1: Discovery &amp; Rules Lock (Gates 1–2)</a><ul><li><a href="#man-step-1-1-answer-the-five-gating-questions">Step 1.1 — Answer the five gating questions</a></li><li><a href="#man-step-1-2-verify-rules-against-the-hasbro-pdf">Step 1.2 — Verify rules against the Hasbro PDF</a></li></ul></li><li><a href="#man-phase-2-architecture-lock-gate-3">Phase 2: Architecture Lock (Gate 3)</a><ul><li><a href="#man-step-2-1-pick-the-stack">Step 2.1 — Pick the stack</a></li><li><a href="#man-step-2-2-decide-client-only-vs-server-authoritative">Step 2.2 — Decide client-only vs server-authoritative</a></li></ul></li><li><a href="#man-phase-3-design-lock-gate-4">Phase 3: Design Lock (Gate 4)</a><ul><li><a href="#man-step-3-1-wireframe-four-screens">Step 3.1 — Wireframe four screens</a></li><li><a href="#man-step-3-2-mvp-definition-gate-5">Step 3.2 — MVP Definition (Gate 5)</a></li></ul></li><li><a href="#man-phase-4-scaffold">Phase 4: Scaffold</a><ul><li><a href="#man-step-4-1-project-scaffold">Step 4.1 — Project scaffold</a></li></ul></li><li><a href="#man-phase-5-game-engine-tdd">Phase 5: Game Engine (TDD)</a><ul><li><a href="#man-step-5-1-data-model">Step 5.1 — Data model</a></li><li><a href="#man-step-5-2-placement-rules-tests">Step 5.2 — Placement rules + tests</a></li><li><a href="#man-step-5-3-firing-sinking-winning-tests">Step 5.3 — Firing, sinking, winning + tests</a></li></ul></li><li><a href="#man-phase-6-ai-opponent">Phase 6: AI Opponent</a><ul><li><a href="#man-step-6-1-easy-ai">Step 6.1 — Easy AI</a></li><li><a href="#man-step-6-2-medium-ai-hunt-target">Step 6.2 — Medium AI (hunt/target)</a></li><li><a href="#man-step-6-3-optional-hard-ai-probability-density">Step 6.3 (optional) — Hard AI (probability density)</a></li></ul></li><li><a href="#man-phase-7-user-interface">Phase 7: User Interface</a><ul><li><a href="#man-step-7-1-wire-placement-screen">Step 7.1 — Wire placement screen</a></li><li><a href="#man-step-7-2-wire-battle-loop">Step 7.2 — Wire battle loop</a></li><li><a href="#man-step-7-3-game-over-rematch">Step 7.3 — Game over &amp; rematch</a></li><li><a href="#man-step-7-4-accessibility-pass">Step 7.4 — Accessibility pass</a></li></ul></li><li><a href="#man-phase-8-debugging-bug-log-deliverable-d2">Phase 8: Debugging &amp; Bug Log (Deliverable D2)</a><ul><li><a href="#man-step-8-1-structured-test-pass">Step 8.1 — Structured test pass</a></li><li><a href="#man-step-8-2-log-each-bug-in-docs-bugs-md">Step 8.2 — Log each bug in docs/BUGS.md</a></li></ul></li><li><a href="#man-phase-9-deploy-deliverable-d1">Phase 9: Deploy (Deliverable D1)</a><ul><li><a href="#man-step-9-1-vercel">Step 9.1 — Vercel</a></li></ul></li><li><a href="#man-phase-10-repo-polish-deliverable-d3">Phase 10: Repo Polish (Deliverable D3)</a></li><li><a href="#man-phase-11-debrief-prep-10-min">Phase 11: Debrief Prep (~10 min)</a></li><li><a href="#man-final-submission-checklist">Final Submission Checklist</a></li></ul></nav>
+  </aside>
+  <main>
+    <section id="panel-requirements" class="panel active" role="tabpanel"
+      aria-labelledby="tab-requirements">
+      <div class="panel-tools">
+        <button class="ghost js-expand" type="button" data-panel="requirements">Expand all</button>
+        <button class="ghost js-collapse" type="button" data-panel="requirements">Collapse all</button>
+        <div class="progress" role="progressbar" aria-label="Requirements checklist progress"
+          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar"></div></div>
+        <span class="progress-label"></span>
+        <span id="variant-chip" class="variant-chip">Variants: Classic only</span>
+      </div>
+      <div class="doc-flow"><div class="md-section"><h1 class="sec-head" id="req-battleship-pre-build-requirements-discovery-pack"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Battleship: Pre-Build Requirements &amp; Discovery Pack</h1><div class="md-body">
+<p>Status: PRE-BUILD. No game code is written until the Orchestrator signs off on Gate 5 (MVP Definition).</p>
+<div class="md-section"><h2 class="sec-head" id="req-0-the-assignment-source-of-truth"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>0. The Assignment (source of truth)</h2><div class="md-body">
+<p>From the interview prompt:</p>
+<ol><li>Build a Battleship game <strong>we can play online against an AI</strong>. Send a link where we can play it.</li><li>Be sure the game is <strong>debugged</strong>. Explain in a short document what bugs you found and how they were fixed.</li><li>Export the code into a <strong>public GitHub repo</strong>. Send the link.</li><li>Any tools are allowed (Devin Cloud, Devin Desktop, Devin CLI, etc.) <strong>except asking another person to write or edit code</strong>.</li><li>Debrief on the game is ~10 minutes of the onsite.</li></ol>
+<p>Deliverables checklist:</p>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>Deliverable</th><th>Acceptance</th></tr></thead><tbody><tr><td>D1</td><td>Public URL to play</td><td>Opens on desktop + phone, no login, full game vs AI playable start to finish</td></tr><tr><td>D2</td><td>Bug report doc (<code>docs/BUGS.md</code>)</td><td>Each bug: symptom, root cause, fix, how verified (test/commit link)</td></tr><tr><td>D3</td><td>Public GitHub repo</td><td>README, run instructions, tests, clean history</td></tr><tr><td>D4</td><td>Debrief talking points</td><td>Decisions, trade-offs, what I'd do next (10 min)</td></tr></tbody></table></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-1-game-rules-baseline-hasbro-classic-no-extra-rules"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>1. Game Rules Baseline (Hasbro classic, no extra rules)</h2><div class="md-body">
+<blockquote class="note"><p><strong>Change note (verified against the PDF page by page):</strong> Corrected hit reporting (the defender must name the ship on every hit, not only on a sink), who-goes-first (the PDF says "Decide who will go first," not "youngest player"), and labeled Salvo as an official Hasbro variation, because the earlier draft was written from memory before the scanned PDF was read.</p></blockquote>
+<p>Source: Hasbro Battleship instructions (hasbro.com/common/instruct/battleship.pdf; ©1990 Milton Bradley, form 4730, 3 scanned pages). Verified line by line against the PDF. The 10x10 size and A–J / 1–10 labels are shown by the game unit in Figure 3 and the letter-left / number-top convention in Figures 4–6; the text itself never states the grid size.</p>
+<ul><li><strong>Grids:</strong> Each player has two 10x10 grids. The <strong>Ocean Grid</strong> holds your own fleet. The <strong>Target Grid</strong> tracks your shots at the opponent. Rows lettered A–J, columns numbered 1–10.</li><li><strong>Fleet (5 ships, 17 cells):</strong></li></ul>
+<div class="table-wrap"><table><thead><tr><th>Ship</th><th>Length</th></tr></thead><tbody><tr><td>Carrier</td><td>5</td></tr><tr><td>Battleship</td><td>4</td></tr><tr><td>Cruiser</td><td>3</td></tr><tr><td>Submarine</td><td>3</td></tr><tr><td>Destroyer</td><td>2</td></tr></tbody></table></div>
+<ul><li><strong>Placement:</strong> Each ship is placed horizontally or vertically only (never diagonally). Ships may not overlap, may not hang off the grid, and may not be moved once play begins. Ships may touch (classic rules do not forbid adjacency).</li><li><strong>Turn order:</strong> Players alternate. One shot per turn: call a coordinate (e.g. "B-7").</li><li><strong>Response:</strong> Opponent answers "miss", or "hit" <strong>and names the ship that was hit</strong> (e.g. "Hit. Cruiser."). Hits are marked red, misses white, on the shooter's Target Grid; the defender marks the hit on their Ocean Grid. After a hit or a miss, the turn is over.</li><li><strong>Sinking:</strong> When every cell of a ship is hit, it is sunk, and the owner must announce which ship was sunk.</li><li><strong>Win:</strong> First player to sink all 5 opposing ships wins.</li><li><strong>Out of scope (explicitly):</strong> Salvo (an official variation in the Hasbro PDF, excluded from MVP; see 6.1), extra turn on hit, power-ups, custom fleets, custom board sizes, diagonal placement.</li></ul>
+<p>Digital-only decisions the physical rules don't cover (must be answered at Gate 2):</p>
+<ul><li>Who goes first? (PDF: "Decide who will go first." Digital: human first, coin flip, or choice?)</li><li>Firing at an already-fired cell: blocked in UI and rejected by engine (not a wasted turn).</li><li>Forfeit / restart mid-game: allowed? Counts as loss?</li></ul>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-2-the-orchestrator"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>2. The Orchestrator</h2><div class="md-body">
+<p>Role: Program Manager + Tech Lead. Owns scope, sequencing, the decision log, the risk register, and the definition of done. Resolves conflicts between roles. In a vibe-coding build, the Orchestrator is <strong>me</strong>, and the specialist roles are hats I (and my AI agents) wear in sequence.</p>
+<div class="md-section"><h3 class="sec-head" id="req-2-1-five-gating-questions-answered-before-anything-else"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>2.1 Five gating questions (answered before anything else)</h3><div class="md-body">
+<div class="table-wrap"><table><thead><tr><th>#</th><th>Question</th><th>Why it gates</th><th>Default recommendation</th></tr></thead><tbody><tr><td>G1</td><td>Who is the audience?</td><td>Drives polish vs speed</td><td>Interview panel: engineers judging code quality, debugging rigor, and UX polish</td></tr><tr><td>G2</td><td>What mode?</td><td>Drives whole architecture</td><td>Human vs AI only, single-player, online (hosted URL)</td></tr><tr><td>G3</td><td>What platform?</td><td>Drives stack</td><td>Web browser, responsive (desktop + mobile)</td></tr><tr><td>G4</td><td>MVP vs later?</td><td>Prevents scope creep</td><td>MVP = classic rules, vs AI, 2 difficulties; later = 3rd difficulty, stats, sound</td></tr><tr><td>G5</td><td>Constraints?</td><td>Timeline, stack, cost</td><td>Due before onsite; free hosting; stack I can explain line by line</td></tr></tbody></table></div>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="req-2-2-orchestrator-artifacts"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>2.2 Orchestrator artifacts</h3><div class="md-body">
+<ul><li><strong>Scope statement</strong> (one paragraph, in README)</li><li><strong>Decision log:</strong> question → answer → role → date (section 9 of this doc)</li><li><strong>Dependency map:</strong> Rules → Data model → Engine → AI → UI → Hosting → Bug doc</li><li><strong>Risk register</strong> (section 8)</li><li><strong>Definition of Done</strong> (section 7)</li></ul>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="req-2-3-gates-sequence"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>2.3 Gates (sequence)</h3><div class="md-body">
+<ol><li><strong>Gate 1 – Discovery:</strong> G1–G5 answered.</li><li><strong>Gate 2 – Rules Lock:</strong> Section 1 verified against PDF; digital-only decisions answered.</li><li><strong>Gate 3 – Architecture Lock:</strong> Stack, client vs server authority, hosting chosen.</li><li><strong>Gate 4 – Design Lock:</strong> Screens + interaction model wireframed.</li><li><strong>Gate 5 – MVP Definition:</strong> DoD signed. <strong>Build starts only after this gate.</strong></li></ol>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-3-roles-and-their-questions"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>3. Roles and Their Questions</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="req-role-1-product-manager-why-for-whom"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Role 1: Product Manager (why, for whom)</h3><div class="md-body">
+<p>Functional</p>
+<ul><li>Is the core loop a quick match (5–10 min)? Yes/no.</li><li>Accounts or guest play? (Default: guest, no login; panel must be able to play instantly.)</li><li>Is there a start screen, or drop straight into placement?</li><li>Rematch button at end of game?</li><li>Do we show match stats (shots, accuracy, turns) at game end?</li><li>Do we persist anything across sessions (win/loss record in localStorage)?</li></ul>
+<p>Non-functional</p>
+<ul><li>Who uses it at launch? (A handful of interviewers, possibly simultaneously.)</li><li>Success metric: panel completes a full game with zero bugs and understands every decision.</li><li>Language: English only. No compliance scope (no PII collected).</li></ul>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="req-role-2-game-designer-the-rules"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Role 2: Game Designer (the rules)</h3><div class="md-body">
+<p>Functional</p>
+<ul><li>Confirm Section 1 matches the Hasbro PDF exactly.</li><li>First move: who fires first?</li><li>Placement: manual (click/drag + rotate), random, or both? (Default: both, with "Randomize" button.)</li><li>Sink announcement: show "You sank my Cruiser!" for both sides? (Rules say yes.)</li><li>Reveal AI fleet at game end if the human loses? (Default: yes.)</li><li>AI difficulty levels:<ul><li><strong>Easy:</strong> random untried cell.</li><li><strong>Medium (Hunt/Target):</strong> random (checkerboard parity) until hit, then probes adjacent cells, follows the line, and returns to hunt after a sink. Because the defender names the ship on every hit, the AI groups hits by ship name: it targets each damaged ship separately, clears only the sunk ship's hits on a sink (keeps chasing other damaged ships), and uses remaining ship lengths to bound its search.</li><li><strong>Hard (Probability density):</strong> for every untried cell, counts how many ways each remaining ship could fit there; fires at the max. Optional for MVP.</li></ul></li><li>Does the AI cheat? (Must be <strong>no</strong>. AI uses only hit/miss/ship-named/sunk info, same as a human.)</li><li>Is the "AI" machine learning? (<strong>No.</strong> It is a deterministic algorithm, "AI" in the video-game sense: stronger than ML here, instant, testable, cannot cheat. Debrief framing: the opponent is an algorithm; AI was used to <em>build</em> it.)</li></ul>
+<p>Non-functional</p>
+<ul><li>AI move delay: instant, or ~400–800 ms "thinking" pause for feel?</li><li>Target match length: ~40–70 total shots vs Medium AI.</li></ul>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="req-role-3-ux-ui-designer-look-and-feel"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Role 3: UX/UI Designer (look and feel)</h3><div class="md-body">
+<p>Functional</p>
+<ul><li>Screens: Start (difficulty) → Placement → Battle → Game Over (winner, stats, rematch).</li><li>Placement interaction: click ship, click cell, "R" key / button to rotate, ghost preview showing valid (green) vs invalid (red + pattern) positions.</li><li>Battle layout: both grids visible (desktop side by side; mobile stacked, Target Grid on top).</li><li>Feedback: hit / miss / sunk visuals, turn indicator, message log ("AI fires at C-4: Miss").</li><li>Fleet status panel: which of your ships and the AI's ships are still afloat.</li></ul>
+<p>Non-functional</p>
+<ul><li>Accessibility: markers distinguishable without color (X for hit, dot for miss); keyboard play (arrow keys + Enter); ARIA labels on cells ("B7, hit"); WCAG AA contrast.</li><li>Responsive from 360 px phone width to desktop.</li><li>Visual style: clean naval theme; no heavy asset downloads.</li><li>60 fps animations; respects <code>prefers-reduced-motion</code>.</li></ul>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="req-role-4-backend-systems-engineer-engine-authority-scale"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Role 4: Backend / Systems Engineer (engine, authority, scale)</h3><div class="md-body">
+<p>Functional</p>
+<ul><li><strong>Where does the game logic live?</strong> This is the key architecture question (see 4.1).</li><li>Game state model: board, ships, shots, turn, status, winner.</li><li>Engine API (pure functions, no UI):<ul><li><code>placeShip(board, ship, row, col, orientation)</code> → valid / error reason</li><li><code>randomPlacement()</code> → valid fleet</li><li><code>fire(state, row, col)</code> → <code>{ result: hit|miss|sunk, shipName?, gameOver, winner? }</code></li><li><code>aiChooseShot(knowledge, difficulty)</code> → <code>{ row, col }</code></li></ul></li><li>Reject illegal actions: out of bounds, repeat shot, firing out of turn, firing after game over.</li><li>Idempotency: a double-click or retried request must never count as two shots (move sequence number).</li></ul>
+<p>Non-functional (right-sized scale math)</p>
+<ul><li>Expected load: a panel of ~3–10 players; design for 1,000 concurrent games to show headroom.</li><li>State per game: 2 x 100 cells + 5 ships + ≤ 200 shots ≈ &lt; 5 KB. 1,000 games ≈ 5 MB RAM. Storage is a non-issue.</li><li>Throughput: human fires ~1 shot / 3 s; 1,000 games ≈ 330 req/s peak. A single small instance handles this.</li><li>Consistency: each game is self-contained (partition key = <code>gameId</code>), so turn order and hit resolution are strongly consistent within a game without distributed locking. Same insight as sharding the parking garage by <code>garage_id</code>.</li><li>Latency: turn-based, so &lt; 200 ms response is plenty.</li></ul>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="req-role-5-frontend-client-engineer"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Role 5: Frontend / Client Engineer</h3><div class="md-body">
+<p>Functional</p>
+<ul><li>Framework: vanilla JS/TS, React, or a canvas engine? (Default: lean. See 4.1.)</li><li>Render grids from state; never hold game truth in the DOM.</li><li>Disable input while waiting for AI / server response.</li><li>Handle refresh mid-game: resume or restart? (Default MVP: restart; stretch: resume from localStorage/server.)</li></ul>
+<p>Non-functional</p>
+<ul><li>Time to playable &lt; 2 s on 4G; bundle &lt; 200 KB.</li><li>Browsers: latest Chrome, Safari (incl. iOS), Firefox, Edge.</li><li>No console errors or warnings in production.</li></ul>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="req-role-6-qa-security-devops"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Role 6: QA, Security &amp; DevOps</h3><div class="md-body">
+<p>Functional test cases (minimum)</p>
+<ul><li>Placement: overlap rejected, off-board rejected, diagonal impossible, all 5 ships required before start, random placement always valid (property test, 10,000 runs).</li><li>Firing: hit, miss, sink detection, repeat-shot rejected, out-of-turn rejected, fire after game over rejected.</li><li>Win: last cell of last ship ends game for both human and AI paths.</li><li>AI: never fires the same cell twice; never fires off-board; Medium finishes a ship once found; AI never reads human ship positions.</li><li>UI: rapid double-click = one shot; rotate at board edge; resize mid-game; keyboard-only full game.</li></ul>
+<p>Non-functional</p>
+<ul><li>Security: if server-authoritative, the AI fleet is never sent to the client until game over. Input validation on every request. Rate limit per session.</li><li>Hosting: free tier, HTTPS, custom-free URL (e.g. GitHub Pages / Vercel / Render).</li><li>CI: GitHub Actions runs tests + lint on every push.</li><li>Monitoring (lightweight): client error logging to console + a health endpoint if a server exists.</li><li>Uptime: must be up during the review window; no cold-start that hangs &gt; 5 s in front of the panel.</li></ul>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-4-key-architecture-decisions-for-gate-3"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>4. Key Architecture Decisions (for Gate 3)</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="req-4-1-client-only-vs-server-authoritative"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>4.1 Client-only vs server-authoritative</h3><div class="md-body">
+<p>The prompt says "play <strong>online</strong> against an AI". Both options satisfy that; the trade-off is the thing to discuss in the debrief.</p>
+<div class="table-wrap"><table><thead><tr><th></th><th>A. Static client-only</th><th>B. Thin server-authoritative</th></tr></thead><tbody><tr><td>How</td><td>All logic in browser; host on Vercel (static)</td><td>Engine + AI on a small API (Node or Python); client renders only</td></tr><tr><td>Hidden info</td><td>AI fleet visible in dev tools (cheatable)</td><td>AI fleet never leaves server until game over</td></tr><tr><td>Hosting</td><td>Free, instant, no cold start</td><td>Vercel Functions in the same project (<code>/api</code>); stateless, so state lives in an encrypted game token round-tripped by the client, or in a KV store (Upstash Redis)</td></tr><tr><td>Complexity</td><td>Low</td><td>Medium (API, state store, CORS, sessions)</td></tr><tr><td>Interview signal</td><td>Clean, fast, well-tested</td><td>Shows system design thinking from the prep (authority, consistency, idempotency)</td></tr></tbody></table></div>
+<p><strong>Recommendation:</strong> Write the engine as a <strong>pure, UI-free module</strong> with full unit tests. Ship <strong>A</strong> for MVP (reliable link, zero cold starts), and document <strong>B</strong> as the production design in the README/debrief. If time allows, move the engine behind an API (B) without rewriting it. This keeps the demo link bulletproof while still showing you understand the hidden-information problem.</p>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="req-4-2-stack-decided-2026-09-26"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>4.2 Stack (decided 2026-09-26)</h3><div class="md-body">
+<ul><li>Language: <strong>TypeScript</strong> (strict).</li><li>Framework: <strong>none</strong> (vanilla TS + ES modules), built with <strong>Vite</strong>.</li><li>Test runner: <strong>Vitest</strong>; lint with <strong>ESLint</strong>; CI on <strong>GitHub Actions</strong>.</li><li>Hosting: <strong>Vercel</strong> (Git-connected, auto-deploy on push to <code>main</code>, preview URL per branch). Chosen over GitHub Pages for zero-config Vite deploys, preview URLs, and a same-project path to server authority via Vercel Functions. Next.js rejected as unnecessary for a single-page game.</li><li>Local tooling: Node.js LTS, GitHub CLI (<code>gh</code>), a code editor, Devin.</li></ul>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-5-functional-requirements-consolidated"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>5. Functional Requirements (consolidated)</h2><div class="md-body">
+<div class="table-wrap"><table><thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead><tbody><tr><td>F1</td><td>Start a new game vs AI and choose difficulty</td><td>Must</td></tr><tr><td>F2</td><td>Place 5 classic ships manually (with rotate) or randomly</td><td>Must</td></tr><tr><td>F3</td><td>Validate placement: in bounds, no overlap, horizontal/vertical only</td><td>Must</td></tr><tr><td>F4</td><td>AI places its fleet randomly and legally</td><td>Must</td></tr><tr><td>F5</td><td>Alternate turns, one shot per turn</td><td>Must</td></tr><tr><td>F6</td><td>Report hit / miss for every shot, both sides</td><td>Must</td></tr><tr><td>F7</td><td>Announce which ship is sunk, both sides</td><td>Must</td></tr><tr><td>F8</td><td>Detect win when all 5 ships are sunk; show winner</td><td>Must</td></tr><tr><td>F9</td><td>Block repeat shots and out-of-turn shots</td><td>Must</td></tr><tr><td>F10</td><td>Easy and Medium AI</td><td>Must</td></tr><tr><td>F11</td><td>Fleet status panel for both sides</td><td>Should</td></tr><tr><td>F12</td><td>Move log</td><td>Should</td></tr><tr><td>F13</td><td>Rematch / new game</td><td>Must</td></tr><tr><td>F14</td><td>Reveal AI fleet at game over</td><td>Should</td></tr><tr><td>F15</td><td>End-of-game stats (shots, accuracy)</td><td>Could</td></tr><tr><td>F16</td><td>Hard (probability) AI</td><td>Could</td></tr><tr><td>F17</td><td>Resume after refresh</td><td>Could</td></tr><tr><td>F18</td><td>Adaptive Hard: weight Hard's probability map by this player's past ship placements (per-cell counts in localStorage; a Bayesian prior, no ML model)</td><td>Could</td></tr></tbody></table></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-6-non-functional-requirements-consolidated"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>6. Non-Functional Requirements (consolidated)</h2><div class="md-body">
+<div class="table-wrap"><table><thead><tr><th>ID</th><th>Category</th><th>Target</th></tr></thead><tbody><tr><td>N1</td><td>Availability</td><td>Public HTTPS URL up throughout review; no login</td></tr><tr><td>N2</td><td>Performance</td><td>Playable &lt; 2 s; each action &lt; 100 ms locally; AI move ≤ 1 s incl. delay</td></tr><tr><td>N3</td><td>Correctness</td><td>Engine unit-test coverage ≥ 90%; all Section 3 Role 6 cases pass</td></tr><tr><td>N4</td><td>Consistency</td><td>Single source of truth for state; UI derived from state; no double shots</td></tr><tr><td>N5</td><td>Security / fairness</td><td>AI never uses hidden info; server mode never leaks AI fleet</td></tr><tr><td>N6</td><td>Accessibility</td><td>Non-color markers, keyboard play, ARIA labels, AA contrast</td></tr><tr><td>N7</td><td>Compatibility</td><td>Latest Chrome, Safari (desktop + iOS), Firefox, Edge; 360 px+ widths</td></tr><tr><td>N8</td><td>Maintainability</td><td>Engine / AI / UI separated; readable code; README explains architecture</td></tr><tr><td>N9</td><td>Observability</td><td>Zero console errors; bug doc documents every defect found</td></tr><tr><td>N10</td><td>Scalability (design)</td><td>Per-game isolation; documented path to server-authoritative scaling</td></tr><tr><td>N11</td><td>Delivery</td><td>CI runs tests on each push; repo public; clean commit history</td></tr></tbody></table></div>
+<div class="md-section"><h3 class="sec-head" id="req-6-1-stretch-debrief-only-variants-not-implemented"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>6.1 Stretch / Debrief-Only Variants (NOT implemented)</h3><div class="md-body">
+<p>These are <strong>talking points for the debrief only</strong>. They were considered and deliberately excluded to avoid scope creep (see the "Scope creep" row in the Risk Register). The MVP ships classic Hasbro rules only.</p>
+<p>Optionality design: every variant is a named flag on a single rules config (e.g. <code>rules.variants.salvo</code>), <strong>all defaulting to Off</strong>. The MVP builds no variant logic; it only keeps rules in one config object so a variant could be switched on later without rewriting the engine. The toggles on this planning page record the scope decision for each variant (Off = excluded); switching one On means it must be added to the Decision Log and re-approved at Gate 5 before any work starts.</p>
+<div class="table-wrap"><table><thead><tr><th>Flag</th><th>Variant</th><th>Source</th><th>What changes</th><th>Default</th></tr></thead><tbody><tr><td><code>salvo</code></td><td>Salvo</td><td>Official Hasbro variation (PDF p.3)</td><td>Each turn fire 5 shots; lose one shot per ship of yours that is sunk; results announced after the full salvo</td><td>Off</td></tr><tr><td><code>salvoHiddenHits</code></td><td>Salvo: undisclosed hits</td><td>Official Hasbro sub-variant (PDF p.3)</td><td>With Salvo on, the defender doesn't disclose which ships were hit</td><td>Off</td></tr><tr><td><code>hotColdHints</code></td><td>Hot/Cold hints</td><td>House rule</td><td>A miss also reports whether a ship is adjacent ("warm")</td><td>Off</td></tr><tr><td><code>fogRevealOnSink</code></td><td>Fog-of-war reveal on sink</td><td>House rule</td><td>When a ship is sunk, its full outline is revealed on the shooter's Target Grid</td><td>Off</td></tr><tr><td><code>superShot</code></td><td>One-time Super Shot</td><td>House rule</td><td>Once per game, fire a 3x3 (or plus-shaped) blast in a single turn</td><td>Off</td></tr></tbody></table></div>
+<p>Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target logic; hints and reveals change the probability model), which is part of why they stay out of scope.</p>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-7-definition-of-done-mvp"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>7. Definition of Done (MVP)</h2><div class="md-body">
+<ul><li class="task"><label><input type="checkbox" class="persist" data-key="req-todo-1"> All "Must" functional requirements (Section 5) work end to end.</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="req-todo-2"> All non-functional targets N1–N9, N11 met.</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="req-todo-3"> Engine and AI tests pass in CI.</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="req-todo-4"> Full game played to completion on desktop and a phone, both win and loss.</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="req-todo-5"> <code>docs/BUGS.md</code> lists every bug found with root cause and fix.</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="req-todo-6"> Public repo with README (overview, how to play, how to run, architecture, trade-offs).</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="req-todo-7"> Live URL tested in an incognito window.</label></li></ul>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-8-risk-register"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>8. Risk Register</h2><div class="md-body">
+<div class="table-wrap"><table><thead><tr><th>Risk</th><th>Impact</th><th>Likelihood</th><th>Mitigation</th></tr></thead><tbody><tr><td>Hosting cold start / outage during review</td><td>High</td><td>Med</td><td>Static hosting for MVP; test URL day-of</td></tr><tr><td>Scope creep (extra modes, animations)</td><td>High</td><td>High</td><td>Hasbro rules only; MoSCoW table above</td></tr><tr><td>AI cheats or looks dumb</td><td>Med</td><td>Med</td><td>AI only uses shot results; test Medium hunt/target behavior</td></tr><tr><td>Subtle rule bugs (sink detection, repeat shots)</td><td>High</td><td>Med</td><td>Engine TDD before UI</td></tr><tr><td>Mobile layout broken</td><td>Med</td><td>Med</td><td>Test at 360 px early</td></tr><tr><td>Can't explain AI-generated code</td><td>High</td><td>Med</td><td>Review every diff; keep stack simple</td></tr><tr><td>Bug doc thin</td><td>Med</td><td>Med</td><td>Log bugs as they're found, not at the end</td></tr></tbody></table></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="req-9-decision-log-fill-in"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>9. Decision Log (fill in)</h2><div class="md-body">
+<div class="table-wrap"><table><thead><tr><th>#</th><th>Question</th><th>Decision</th><th>Role</th><th>Date</th></tr></thead><tbody><tr><td>1</td><td>Audience</td><td>Interview panel (engineers) judging correctness, debugging rigor, UX polish</td><td>Orchestrator</td><td>2026-09-26</td></tr><tr><td>2</td><td>Mode</td><td>Human vs AI, single-player, online (hosted URL)</td><td>Orchestrator</td><td>2026-09-26</td></tr><tr><td>3</td><td>Platform</td><td>Web browser, responsive (desktop + mobile)</td><td>Orchestrator</td><td>2026-09-26</td></tr><tr><td>4</td><td>MVP scope</td><td>v0.1 = all "Must" requirements, Easy + Medium AI; Hard (F16) and Adaptive Hard (F18) later</td><td>Orchestrator</td><td>2026-09-26</td></tr><tr><td>5</td><td>Constraints</td><td>Due before onsite; free hosting; stack explainable line by line</td><td>Orchestrator</td><td>2026-09-26</td></tr><tr><td>6</td><td>Who fires first</td><td>Human fires first (default; revisit)</td><td>Game Designer</td><td>2026-09-26</td></tr><tr><td>7</td><td>Placement modes</td><td>Manual (click + rotate) and Randomize</td><td>Game Designer</td><td>2026-09-26</td></tr><tr><td>8</td><td>AI difficulties in MVP</td><td>Easy (random) + Medium (hunt/target, hits grouped by ship name)</td><td>Game Designer</td><td>2026-09-26</td></tr><tr><td>9</td><td>Client-only vs server-authoritative</td><td>Client-only for v0.1; server-authoritative (Vercel Functions) documented as production design</td><td>Systems Engineer</td><td>2026-09-26</td></tr><tr><td>10</td><td>Language / framework</td><td>TypeScript + Vite, no UI framework</td><td>Frontend Engineer</td><td>2026-09-26</td></tr><tr><td>11</td><td>Hosting</td><td>Vercel</td><td>DevOps</td><td>2026-09-26</td></tr><tr><td>12</td><td>Test runner / CI</td><td>Vitest + ESLint, GitHub Actions</td><td>QA</td><td>2026-09-26</td></tr></tbody></table></div>
+</div></div>
+</div></div></div>
+    </section>
+    <section id="panel-manual" class="panel" role="tabpanel"
+      aria-labelledby="tab-manual" hidden>
+      <div class="panel-tools">
+        <button class="ghost js-expand" type="button" data-panel="manual">Expand all</button>
+        <button class="ghost js-collapse" type="button" data-panel="manual">Collapse all</button>
+        <div class="progress" role="progressbar" aria-label="Build manual checklist progress"
+          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar"></div></div>
+        <span class="progress-label"></span>
+      </div>
+      <div class="doc-flow"><div class="md-section"><h1 class="sec-head" id="man-battleship-step-by-step-build-manual-vibe-coding-with-devin"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Battleship: Step-by-Step Build Manual (Vibe Coding with Devin)</h1><div class="md-body">
+<p>How to use this: work top to bottom. Each step has a goal, what to do, a copy-paste prompt for Devin where relevant, and a "done when" check. Don't skip gates. Log every bug in <code>docs/BUGS.md</code> the moment you find it.</p>
+<p>Rules for vibe coding this project:</p>
+<ul><li><strong>You are the Orchestrator.</strong> Devin writes code; you decide, review every diff, and must be able to explain every line in the debrief.</li><li><strong>Small prompts, small diffs.</strong> One feature per prompt. Commit after each green step.</li><li><strong>Tests before UI.</strong> The engine is proven by tests before anything is drawn on screen.</li><li><strong>Hasbro rules only.</strong> If a prompt result adds rules you didn't ask for, reject it.</li></ul>
+<hr>
+<div class="md-section"><h2 class="sec-head" id="man-phase-0-environment-repo-setup"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 0: Environment &amp; Repo Setup</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-0-1-install-tools"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 0.1 — Install tools</h3><div class="md-body">
+<ul><li>Install <strong>Node.js LTS</strong> and the <strong>GitHub CLI</strong> (done 2026-09-26: user-local in <code>~/.local</code>, on PATH via <code>~/.zshrc</code>; no Homebrew or sudo needed).</li><li>Set git identity: <code>git config --global user.name "Your Name"</code> and <code>git config --global user.email "you@example.com"</code> (use your GitHub noreply address from github.com → Settings → Emails to keep your email private).</li><li>Authenticate: <code>gh auth login</code> → GitHub.com → HTTPS → login with browser.</li></ul>
+<p>Done when: <code>node -v</code>, <code>npm -v</code>, <code>gh auth status</code> all succeed.</p>
+<p>Note: the GitHub integration in Devin's web settings powers Devin Cloud sessions. Pushing from your own Mac terminal still needs <code>gh auth login</code> (or an SSH key) locally.</p>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-0-2-create-the-public-repo"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 0.2 — Create the public repo</h3><div class="md-body">
+<pre><code>cd ~/battleship-game
+gh repo create battleship-game --public --source=. --remote=origin</code></pre>
+<p>Done when: the repo exists at github.com/&lt;you&gt;/battleship-game and <code>git remote -v</code> shows origin.</p>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-0-3-commit-the-planning-docs-first"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 0.3 — Commit the planning docs first</h3><div class="md-body">
+<p>Commit <code>docs/requirements.md</code>, <code>docs/build-manual.md</code>, and the planning webpage. This shows reviewers you planned before coding.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-1-discovery-rules-lock-gates-1-2"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 1: Discovery &amp; Rules Lock (Gates 1–2)</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-1-1-answer-the-five-gating-questions"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 1.1 — Answer the five gating questions</h3><div class="md-body">
+<p>Fill rows 1–5 of the Decision Log in the requirements doc.</p>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-1-2-verify-rules-against-the-hasbro-pdf"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 1.2 — Verify rules against the Hasbro PDF</h3><div class="md-body">
+<p>Open hasbro.com/common/instruct/battleship.pdf and check Section 1 line by line. Answer the digital-only decisions (first move, repeat shots, forfeit).</p>
+<p>Done when: Decision Log rows 1–8 are filled; out-of-scope list is confirmed.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-2-architecture-lock-gate-3"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 2: Architecture Lock (Gate 3)</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-2-1-pick-the-stack"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 2.1 — Pick the stack</h3><div class="md-body">
+<p>Recommended default (simple, explainable, zero cold starts):</p>
+<ul><li><strong>Vite + TypeScript</strong>, no UI framework (or React if you prefer)</li><li><strong>Vitest</strong> for tests</li><li><strong>Vercel</strong> for hosting (Git-connected; auto-deploys <code>main</code>, preview URL per branch); GitHub Actions for CI (lint + test)</li><li>Engine as a pure module (<code>src/engine/</code>), AI as a pure module (<code>src/ai/</code>), UI separate (<code>src/ui/</code>)</li></ul>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-2-2-decide-client-only-vs-server-authoritative"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 2.2 — Decide client-only vs server-authoritative</h3><div class="md-body">
+<p>Use requirements Section 4.1. Recommended: client-only MVP, server-authoritative documented as the production design.</p>
+<p>Done when: Decision Log rows 9–12 filled.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-3-design-lock-gate-4"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 3: Design Lock (Gate 4)</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-3-1-wireframe-four-screens"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 3.1 — Wireframe four screens</h3><div class="md-body">
+<p>Start → Placement → Battle → Game Over. Sketch on paper or ask Devin for a static HTML mock (no logic).</p>
+<p>Prompt:</p>
+<blockquote class="prompt"><p>Create a static, non-functional HTML/CSS mockup of a Battleship game with four screens: Start (difficulty select: Easy, Medium), Placement (10x10 ocean grid, ship list, Rotate and Randomize buttons), Battle (Target Grid and Ocean Grid side by side on desktop, stacked on mobile under 700px, turn indicator, move log, fleet status), Game Over (winner, stats, Rematch). Rows A–J, columns 1–10. Hits shown with X, misses with a dot, so they are distinguishable without color. No JavaScript game logic.</p></blockquote>
+<p>Done when: you approve the layout on desktop and at 360 px width.</p>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-3-2-mvp-definition-gate-5"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 3.2 — MVP Definition (Gate 5)</h3><div class="md-body">
+<p>Confirm the Definition of Done in the requirements doc. <strong>Build begins now.</strong></p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-4-scaffold"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 4: Scaffold</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-4-1-project-scaffold"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 4.1 — Project scaffold</h3><div class="md-body">
+<p>Prompt:</p>
+<blockquote class="prompt"><p>In this repo, scaffold a Vite + TypeScript project with Vitest and ESLint. Create folders src/engine, src/ai, src/ui, and tests. Add npm scripts: dev, build, test, lint. Add a GitHub Actions workflow that runs lint and test on every push and pull request. Replace the root index.html (currently a redirect to the planning site) with the Vite app entry, and make scripts/build_page.py also write the planning site to public/plan/index.html so it deploys at /plan/. Do not write any game logic yet.</p></blockquote>
+<p>Done when: <code>npm install &amp;&amp; npm test &amp;&amp; npm run build</code> succeed; CI is green on GitHub.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-5-game-engine-tdd"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 5: Game Engine (TDD)</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-5-1-data-model"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 5.1 — Data model</h3><div class="md-body">
+<p>Prompt:</p>
+<blockquote class="prompt"><p>In src/engine, define TypeScript types for a classic Hasbro Battleship game: a 10x10 board (rows A–J, cols 1–10), the five ships (Carrier 5, Battleship 4, Cruiser 3, Submarine 3, Destroyer 2), orientation (horizontal/vertical only), shot results (hit, miss, sunk), and game state (both players' boards, shots, whose turn, status, winner). No UI code.</p></blockquote>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-5-2-placement-rules-tests"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 5.2 — Placement rules + tests</h3><div class="md-body">
+<p>Prompt:</p>
+<blockquote class="prompt"><p>Implement placeShip and randomPlacement in src/engine with Vitest tests first. Rules: horizontal or vertical only, must stay fully on the 10x10 board, ships may not overlap, ships may touch. placeShip returns a result with an error reason on failure. Add a property test that runs randomPlacement 10,000 times and asserts every fleet is valid and has exactly 17 occupied cells.</p></blockquote>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-5-3-firing-sinking-winning-tests"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 5.3 — Firing, sinking, winning + tests</h3><div class="md-body">
+<p>Prompt:</p>
+<blockquote class="prompt"><p>Implement fire(state, player, row, col) in src/engine with tests first. It must: return miss, or hit with the name of the ship that was hit (Hasbro rules: the defender names the ship on every hit); return sunk with the ship name when the last cell of a ship is hit; set the winner when all 5 ships are sunk; reject out-of-bounds shots, repeat shots on the same cell, shots out of turn, and any shot after the game is over, without changing state. Alternate turns after every valid shot (one shot per turn, no extra turn on hit).</p></blockquote>
+<p>Done when: all engine tests pass; coverage ≥ 90% on src/engine.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-6-ai-opponent"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 6: AI Opponent</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-6-1-easy-ai"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 6.1 — Easy AI</h3><div class="md-body">
+<p>Prompt:</p>
+<blockquote class="prompt"><p>In src/ai, implement an Easy AI that picks a uniformly random cell it has not fired at before. It receives only its own shot history and results (hit/miss/sunk), never the opponent's ship positions. Add tests: it never repeats a cell and never fires off-board over 1,000 simulated games.</p></blockquote>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-6-2-medium-ai-hunt-target"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 6.2 — Medium AI (hunt/target)</h3><div class="md-body">
+<p>Prompt:</p>
+<blockquote class="prompt"><p>Add a Medium AI in src/ai using hunt/target: hunt randomly (optionally parity/checkerboard) until a hit; then target adjacent cells; once two hits line up, continue along that line in both directions; because Hasbro rules name the ship on every hit, group hits by ship name and target each damaged ship separately; when a ship is reported sunk, clear only that ship's hits and keep targeting any other damaged ship before resuming the hunt; use the lengths of ships still afloat to bound the search. Uses only shot results. Add tests for: following a line after two hits, reversing direction at a miss, two adjacent hits on different ships treated as separate targets, continuing to chase a damaged ship after sinking a different one, returning to hunt after a sink, and a simulation showing Medium averages fewer shots to win than Easy over 500 games.</p></blockquote>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-6-3-optional-hard-ai-probability-density"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 6.3 (optional) — Hard AI (probability density)</h3><div class="md-body">
+<p>Only after MVP is done and deployed.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-7-user-interface"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 7: User Interface</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-7-1-wire-placement-screen"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 7.1 — Wire placement screen</h3><div class="md-body">
+<blockquote class="prompt"><p>Build the Placement screen in src/ui using the approved mockup. Click a ship, hover to preview (valid vs invalid shown with both color and pattern), click to place, R key or button to rotate, Randomize button, Start disabled until all 5 ships placed. All validation calls the engine; the UI holds no rule logic.</p></blockquote>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-7-2-wire-battle-loop"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 7.2 — Wire battle loop</h3><div class="md-body">
+<blockquote class="prompt"><p>Build the Battle screen. Human clicks a Target Grid cell to fire; input is locked until the AI finishes its turn (with a ~500 ms delay). Show hit (X) with the name of the ship hit ("Hit. Cruiser."), miss (dot), sunk announcements for both sides ("You sank my Cruiser!"), a move log, and fleet status. Already-fired cells are not clickable. Double-clicks must never fire twice.</p></blockquote>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-7-3-game-over-rematch"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 7.3 — Game over &amp; rematch</h3><div class="md-body">
+<blockquote class="prompt"><p>Build the Game Over screen: winner, shots fired, accuracy, reveal the AI fleet, Rematch button that fully resets state.</p></blockquote>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-7-4-accessibility-pass"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 7.4 — Accessibility pass</h3><div class="md-body">
+<blockquote class="prompt"><p>Make the game fully keyboard-playable (arrow keys move a focus cursor, Enter fires/places, R rotates), add ARIA labels to every cell (e.g. "B7, miss"), ensure WCAG AA contrast, respect prefers-reduced-motion.</p></blockquote>
+<p>Done when: full game playable with mouse, touch, and keyboard only.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-8-debugging-bug-log-deliverable-d2"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 8: Debugging &amp; Bug Log (Deliverable D2)</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-8-1-structured-test-pass"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 8.1 — Structured test pass</h3><div class="md-body">
+<p>Run every case in requirements Section 3, Role 6. Play at least 10 full games (win and lose, Easy and Medium, desktop and phone).</p>
+</div></div>
+<div class="md-section"><h3 class="sec-head" id="man-step-8-2-log-each-bug-in-docs-bugs-md"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 8.2 — Log each bug in docs/BUGS.md</h3><div class="md-body">
+<p>Template per bug:</p>
+<pre><code>## BUG-00X: &lt;short title&gt;
+- Symptom: what the player saw
+- Steps to reproduce:
+- Root cause: why it happened (file/function)
+- Fix: what changed (commit link)
+- Verification: test added / manual check</code></pre>
+<p>Prompt to use when you find one:</p>
+<blockquote class="prompt"><p>Bug: &lt;symptom and repro steps&gt;. First write a failing test that reproduces it, then find the root cause, fix it, and confirm the test passes. Explain the root cause in one paragraph I can paste into docs/BUGS.md.</p></blockquote>
+<p>Common Battleship bugs to hunt for: double-click fires twice; AI fires same cell twice; sink not detected when ships touch; turn doesn't pass after a sink; game continues after win; rotation lets ship hang off board; Rematch keeps old state; mobile grid overflows; stale closures firing shots after game over.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-9-deploy-deliverable-d1"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 9: Deploy (Deliverable D1)</h2><div class="md-body">
+<div class="md-section"><h3 class="sec-head" id="man-step-9-1-vercel"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Step 9.1 — Vercel</h3><div class="md-body">
+<p>One-time, in the browser (you): vercel.com → sign in with GitHub → Add New → Project → import <code>battleship-game</code> → Framework Preset: Vite (auto-detected; build <code>npm run build</code>, output <code>dist</code>) → Deploy. From then on every push to <code>main</code> deploys to production and every branch gets a preview URL.</p>
+<p>Prompt (optional hardening):</p>
+<blockquote class="prompt"><p>Add a minimal vercel.json only if needed (e.g. security headers); keep Vite's default base path "/". Confirm <code>npm run build</code> produces dist/ with the game at / and the planning site at /plan/.</p></blockquote>
+<p>Done when: <code>https://&lt;project&gt;.vercel.app/</code> loads in an incognito window on desktop and phone, and a full game completes with zero console errors.</p>
+<hr>
+</div></div>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-10-repo-polish-deliverable-d3"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 10: Repo Polish (Deliverable D3)</h2><div class="md-body">
+<ul><li>README: what it is, live link, how to play, how to run locally, architecture diagram (engine / AI / UI), key trade-offs (client-only vs server-authoritative), testing approach, link to BUGS.md, what's next.</li><li>Clean commit history with meaningful messages.</li><li>CI badge in README.</li><li>Confirm repo is public (<code>gh repo view --web</code>).</li></ul>
+<hr>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-phase-11-debrief-prep-10-min"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Phase 11: Debrief Prep (~10 min)</h2><div class="md-body">
+<p>Outline:</p>
+<ol><li>What I built + live demo (2 min)</li><li>How I scoped it: requirements, Hasbro rules only, MoSCoW (2 min)</li><li>Architecture + the hidden-information trade-off (2 min)</li><li>Bugs found and how I fixed them (2 min)</li><li>How I used Devin / what I'd do next: Hard AI, Adaptive Hard, server authority on Vercel Functions, multiplayer (2 min)</li></ol>
+<p>Framing line for the AI question: "The opponent is a deterministic algorithm (hunt/target, later probability density), not ML: it's stronger here, instant, testable, and can't cheat. AI was how I <em>built</em> it: Devin wrote code and tests from my specs; I reviewed and debugged every diff."</p>
+</div></div>
+<div class="md-section"><h2 class="sec-head" id="man-final-submission-checklist"><button class="caret" type="button" aria-label="Collapse section" aria-expanded="true"></button>Final Submission Checklist</h2><div class="md-body">
+<ul><li class="task"><label><input type="checkbox" class="persist" data-key="man-todo-1"> Live URL (D1)</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="man-todo-2"> docs/BUGS.md link (D2)</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="man-todo-3"> Public GitHub repo link (D3)</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="man-todo-4"> Debrief outline (D4)</label></li><li class="task"><label><input type="checkbox" class="persist" data-key="man-todo-5"> Sent to hiring manager</label></li></ul>
+</div></div>
+</div></div></div>
+    </section>
+  </main>
+</div>
+<footer class="foot">Generated from <code>docs/requirements.md</code> and
+<code>docs/build-manual.md</code> by <code>scripts/build_page.py</code> · 2026-09-26 ·
+anchors: <code>#requirements</code> / <code>#manual</code></footer>
+<script>
+(function () {
+"use strict";
+var PREFIX = "bsplan:";
+function sget(k){ try { return localStorage.getItem(PREFIX + k); } catch (e) { return null; } }
+function sset(k,v){ try { localStorage.setItem(PREFIX + k, v); } catch (e) {} }
+function sdel(k){ try { localStorage.removeItem(PREFIX + k); } catch (e) {} }
+function qa(sel, root){ return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+/* ---------- theme ---------- */
+var theme = sget("theme");
+if (theme !== "light" && theme !== "dark") {
+  theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+}
+document.documentElement.setAttribute("data-theme", theme);
+var themeBtn = document.getElementById("theme-toggle");
+function paintTheme(){ themeBtn.textContent = theme === "dark" ? "Light theme" : "Dark theme"; }
+themeBtn.addEventListener("click", function () {
+  theme = theme === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", theme);
+  sset("theme", theme); paintTheme();
+});
+paintTheme();
+
+/* ---------- tabs ---------- */
+var panels = {
+  requirements: document.getElementById("panel-requirements"),
+  manual: document.getElementById("panel-manual")
+};
+var tocs = {
+  requirements: document.getElementById("toc-requirements"),
+  manual: document.getElementById("toc-manual")
+};
+var tabs = qa(".tab");
+var current = "requirements";
+function activate(name, fromHashNav) {
+  if (!panels[name]) name = "requirements";
+  current = name;
+  tabs.forEach(function (t) {
+    t.setAttribute("aria-selected", t.getAttribute("data-panel") === name ? "true" : "false");
+  });
+  Object.keys(panels).forEach(function (k) {
+    var on = k === name;
+    panels[k].classList.toggle("active", on);
+    panels[k].hidden = !on;
+    if (tocs[k]) tocs[k].hidden = !on;
+  });
+  if (!fromHashNav && ("#" + name) !== location.hash) {
+    try { history.replaceState(null, "", "#" + name); } catch (e) { location.hash = name; }
+  }
+  updateSpy();
+  if (typeof searchBox !== "undefined" && searchBox.value.trim().length >= 2) runSearch();
+}
+tabs.forEach(function (t) {
+  t.addEventListener("click", function () { activate(t.getAttribute("data-panel"), false); });
+});
+document.querySelector(".tabs").addEventListener("keydown", function (e) {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  var i = tabs.indexOf(document.activeElement);
+  if (i < 0) return;
+  var j = (i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length;
+  tabs[j].focus();
+  tabs[j].click();
+  e.preventDefault();
+});
+
+/* ---------- deep links ---------- */
+function fromHash() {
+  var id = "";
+  try { id = decodeURIComponent(location.hash.replace(/^#/, "")); } catch (e) { id = location.hash.slice(1); }
+  if (!id) { activate("requirements", true); return; }
+  if (id === "requirements" || id === "manual") { activate(id, true); window.scrollTo(0, 0); return; }
+  var el = document.getElementById(id);
+  if (!el) return;
+  var p = el.closest(".panel");
+  if (p) activate(p.id.replace("panel-", ""), true);
+  var a = el.parentElement;
+  while (a) {
+    if (a.classList && a.classList.contains("md-section")) a.classList.remove("collapsed");
+    a = a.parentElement;
+  }
+  setTimeout(function () { el.scrollIntoView(); }, 0);
+}
+window.addEventListener("hashchange", fromHash);
+
+/* ---------- collapsible headings ---------- */
+document.addEventListener("click", function (e) {
+  var c = e.target && e.target.closest ? e.target.closest(".caret") : null;
+  if (!c) return;
+  var s = c.closest(".md-section");
+  if (!s) return;
+  s.classList.toggle("collapsed");
+  c.setAttribute("aria-expanded", s.classList.contains("collapsed") ? "false" : "true");
+});
+qa(".js-expand").forEach(function (b) {
+  b.addEventListener("click", function () {
+    qa(".md-section", panels[b.getAttribute("data-panel")]).forEach(function (s) {
+      s.classList.remove("collapsed");
+    });
+  });
+});
+qa(".js-collapse").forEach(function (b) {
+  b.addEventListener("click", function () {
+    qa(".md-section", panels[b.getAttribute("data-panel")]).forEach(function (s) {
+      s.classList.add("collapsed");
+    });
+  });
+});
+
+/* ---------- gates stepper (requirements 2.3) ---------- */
+function setupGates() {
+  var heads = qa("h3", panels.requirements);
+  for (var i = 0; i < heads.length; i++) {
+    if (!/Gates/.test(heads[i].textContent)) continue;
+    var sec = heads[i].closest(".md-section");
+    var ol = sec ? sec.querySelector("ol") : null;
+    if (!ol) return;
+    ol.classList.add("gate-stepper");
+    for (var j = 0; j < ol.children.length; j++) {
+      var li = ol.children[j];
+      var span = document.createElement("span");
+      span.className = "gate-text";
+      while (li.firstChild) span.appendChild(li.firstChild);
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "persist gate-check";
+      cb.setAttribute("data-key", "gate-" + (j + 1));
+      cb.setAttribute("aria-label", "Mark gate " + (j + 1) + " complete");
+      var lab = document.createElement("label");
+      lab.className = "gate-label";
+      lab.appendChild(cb);
+      lab.appendChild(span);
+      li.className = "gate-item";
+      li.appendChild(lab);
+    }
+    return;
+  }
+}
+
+/* ---------- step checkboxes (build manual "### Step x.y") ---------- */
+function setupSteps() {
+  qa("h3", panels.manual).forEach(function (h) {
+    var m = h.textContent.match(/Step\s+([\d.]+)/);
+    if (!m) return;
+    var cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "persist step-check";
+    cb.setAttribute("data-key", "step-" + m[1].replace(/\.$/, ""));
+    cb.setAttribute("aria-label", "Mark " + h.textContent.trim() + " done");
+    h.insertBefore(cb, h.childNodes[1] || null);
+  });
+}
+
+/* ---------- persisted checkboxes ---------- */
+function initPersist() {
+  qa("input.persist").forEach(function (inp) {
+    var key = "check:" + inp.getAttribute("data-key");
+    inp.checked = sget(key) === "1";
+    var li = inp.closest(".gate-item");
+    if (li) li.classList.toggle("done", inp.checked);
+    inp.addEventListener("change", function () {
+      if (this.checked) sset(key, "1"); else sdel(key);
+      var l = this.closest(".gate-item");
+      if (l) l.classList.toggle("done", this.checked);
+      updateProgress();
+    });
+  });
+}
+
+/* ---------- progress bars ---------- */
+function updateProgress() {
+  Object.keys(panels).forEach(function (name) {
+    var p = panels[name];
+    var all = qa("input.persist", p), done = 0;
+    all.forEach(function (i2) { if (i2.checked) done++; });
+    var bar = p.querySelector(".progress .bar");
+    var lab = p.querySelector(".progress-label");
+    var pb = p.querySelector(".progress");
+    var pct = all.length ? Math.round(done * 100 / all.length) : 0;
+    if (bar) bar.style.width = pct + "%";
+    if (lab) lab.textContent = done + "/" + all.length + " done";
+    if (pb) pb.setAttribute("aria-valuenow", String(pct));
+  });
+}
+
+/* ---------- decision log (requirements 9) ---------- */
+var decTable = null;
+var decCols = {};
+function setupDecisions() {
+  var heads = qa("h2", panels.requirements);
+  for (var i = 0; i < heads.length; i++) {
+    if (!/Decision Log/.test(heads[i].textContent)) continue;
+    var sec = heads[i].closest(".md-section");
+    decTable = sec ? sec.querySelector("table") : null;
+    if (!decTable) return;
+    decTable.classList.add("decision-table");
+    var ths = qa("thead th", decTable);
+    ths.forEach(function (th, idx) {
+      var t = th.textContent.trim().toLowerCase();
+      if (t === "decision" || t === "date") decCols[t] = idx;
+    });
+    qa("tbody tr", decTable).forEach(function (row, r) {
+      ["decision", "date"].forEach(function (which) {
+        var idx = decCols[which];
+        if (idx == null || !row.children[idx]) return;
+        var cell = row.children[idx];
+        var existing = cell.textContent.trim();
+        cell.textContent = "";
+        var inp = document.createElement("input");
+        inp.type = "text";
+        inp.className = "dec-input";
+        var k = "dec:" + which + "-" + r;
+        inp.setAttribute("data-k", k);
+        inp.placeholder = which === "date" ? "YYYY-MM-DD" : "…";
+        var saved = sget(k);
+        inp.value = saved != null ? saved : existing;
+        var q = row.children[1] ? row.children[1].textContent.trim() : "row " + (r + 1);
+        inp.setAttribute("aria-label", q + " — " + which);
+        inp.addEventListener("input", function () {
+          var kk = this.getAttribute("data-k");
+          if (this.value) sset(kk, this.value); else sdel(kk);
+        });
+        cell.appendChild(inp);
+      });
+    });
+    var wrap = document.createElement("div");
+    wrap.className = "dec-actions";
+    var bj = document.createElement("button");
+    bj.type = "button"; bj.className = "ghost"; bj.textContent = "Export decisions (JSON)";
+    bj.addEventListener("click", function () {
+      download("battleship-decisions.json", toJSON(), "application/json");
+    });
+    var bm = document.createElement("button");
+    bm.type = "button"; bm.className = "ghost"; bm.textContent = "Export decisions (Markdown)";
+    bm.addEventListener("click", function () {
+      download("battleship-decisions.md", toMD(), "text/markdown");
+    });
+    wrap.appendChild(bj);
+    wrap.appendChild(bm);
+    decTable.parentNode.insertBefore(wrap, decTable.nextSibling);
+    return;
+  }
+}
+function collectDecisions() {
+  var out = [];
+  qa("tbody tr", decTable).forEach(function (row) {
+    var c = row.children;
+    var val = function (idx) {
+      if (idx == null || !c[idx]) return "";
+      var inp = c[idx].querySelector("input");
+      return inp ? inp.value : c[idx].textContent.trim();
+    };
+    out.push({
+      n: c[0] ? c[0].textContent.trim() : "",
+      question: c[1] ? c[1].textContent.trim() : "",
+      decision: val(decCols.decision),
+      role: c[3] ? c[3].textContent.trim() : "",
+      date: val(decCols.date)
+    });
+  });
+  return out;
+}
+/* ---------- variant toggles (requirements 6.1) ---------- */
+var VARIANT_DEPS = { salvoHiddenHits: "salvo" };
+var variantState = {};
+var variantBtns = {};
+var variantWarn = null;
+var variantChip = null;
+function variantsJSON() {
+  var o = {};
+  Object.keys(variantBtns).forEach(function (f) { o[f] = !!variantState[f]; });
+  return o;
+}
+function setVariant(flag, on) {
+  var dep = VARIANT_DEPS[flag];
+  if (dep && !variantState[dep]) on = false;
+  variantState[flag] = on;
+  if (on) sset("variant:" + flag, "1"); else sdel("variant:" + flag);
+  refreshVariants();
+}
+function refreshVariants() {
+  var count = 0;
+  Object.keys(variantBtns).forEach(function (flag) {
+    var v = variantBtns[flag];
+    var dep = VARIANT_DEPS[flag];
+    var depOff = !!(dep && !variantState[dep]);
+    if (depOff && variantState[flag]) {
+      variantState[flag] = false;
+      sdel("variant:" + flag);
+    }
+    var on = !!variantState[flag] && !depOff;
+    v.btn.setAttribute("aria-checked", on ? "true" : "false");
+    v.label.textContent = on ? "On" : "Off";
+    if (depOff) {
+      var depName = dep.charAt(0).toUpperCase() + dep.slice(1);
+      v.btn.disabled = true;
+      v.btn.title = "Requires " + depName;
+      v.btn.setAttribute("aria-describedby", "hint-" + flag);
+      v.hint.textContent = "Requires " + depName;
+      v.hint.hidden = false;
+    } else {
+      v.btn.disabled = false;
+      v.btn.removeAttribute("title");
+      v.btn.removeAttribute("aria-describedby");
+      v.hint.hidden = true;
+    }
+    v.print.textContent = on ? "On (default: " + v.dflt + ")" : v.dflt;
+    if (on) count++;
+  });
+  if (variantWarn) {
+    variantWarn.hidden = count === 0;
+    variantWarn.textContent = "Scope change: " + count +
+      " variant(s) enabled — add to Decision Log and re-approve at Gate 5.";
+  }
+  if (variantChip) {
+    variantChip.textContent = count ? "Variants: " + count + " on" : "Variants: Classic only";
+  }
+}
+function setupVariants() {
+  var heads = qa("h3", panels.requirements), sec = null;
+  for (var i = 0; i < heads.length; i++) {
+    if (/Variants/.test(heads[i].textContent)) { sec = heads[i].closest(".md-section"); break; }
+  }
+  if (!sec) return;
+  var table = sec.querySelector("table");
+  if (!table) return;
+  var flagIdx = -1, defIdx = -1;
+  qa("thead th", table).forEach(function (th, idx) {
+    var t = th.textContent.trim().toLowerCase();
+    if (t === "flag") flagIdx = idx;
+    if (t === "default") defIdx = idx;
+  });
+  if (flagIdx < 0 || defIdx < 0) return;
+  table.classList.add("variant-table");
+  qa("tbody tr", table).forEach(function (row) {
+    var cells = row.children;
+    if (!cells[flagIdx] || !cells[defIdx]) return;
+    var flag = cells[flagIdx].textContent.trim();
+    var cell = cells[defIdx];
+    var dflt = cell.textContent.trim() || "Off";
+    cell.setAttribute("data-default", dflt);
+    cell.textContent = "";
+    cell.classList.add("variant-cell");
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "switch";
+    btn.setAttribute("role", "switch");
+    btn.setAttribute("aria-checked", "false");
+    btn.setAttribute("aria-label", cells[1] ? cells[1].textContent.trim() + " variant" : flag + " variant");
+    var track = document.createElement("span");
+    track.className = "sw-track";
+    var thumb = document.createElement("span");
+    thumb.className = "sw-thumb";
+    track.appendChild(thumb);
+    var lab = document.createElement("span");
+    lab.className = "sw-label";
+    lab.textContent = "Off";
+    btn.appendChild(track);
+    btn.appendChild(lab);
+    var hint = document.createElement("span");
+    hint.className = "var-hint";
+    hint.id = "hint-" + flag;
+    hint.hidden = true;
+    var prn = document.createElement("span");
+    prn.className = "var-print";
+    prn.textContent = dflt;
+    cell.appendChild(btn);
+    cell.appendChild(hint);
+    cell.appendChild(prn);
+    variantBtns[flag] = { btn: btn, label: lab, print: prn, hint: hint, dflt: dflt };
+    variantState[flag] = sget("variant:" + flag) === "1";
+    btn.addEventListener("click", function () { setVariant(flag, !variantState[flag]); });
+  });
+  var warn = document.createElement("div");
+  warn.className = "variant-warning";
+  warn.setAttribute("role", "status");
+  warn.hidden = true;
+  var wrap = table.closest(".table-wrap") || table;
+  wrap.parentNode.insertBefore(warn, wrap.nextSibling);
+  variantWarn = warn;
+  variantChip = document.getElementById("variant-chip");
+  refreshVariants();
+}
+
+function toJSON() {
+  return JSON.stringify({ decisions: collectDecisions(), variants: variantsJSON() }, null, 2) + "\n";
+}
+function toMD() {
+  var esc = function (s) { return s.replace(/\|/g, "\\|").replace(/\n/g, " "); };
+  var lines = ["| # | Question | Decision | Role | Date |", "|---|----------|----------|------|------|"];
+  collectDecisions().forEach(function (d) {
+    lines.push("| " + [d.n, esc(d.question), esc(d.decision), esc(d.role), esc(d.date)].join(" | ") + " |");
+  });
+  var vkeys = Object.keys(variantBtns);
+  if (vkeys.length) {
+    lines.push("", "## Variants", "", "| Flag | State |", "|------|-------|");
+    vkeys.forEach(function (f) {
+      lines.push("| " + f + " | " + (variantState[f] ? "On" : "Off") + " |");
+    });
+  }
+  return lines.join("\n") + "\n";
+}
+function download(name, text, mime) {
+  var blob = new Blob([text], { type: mime });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
+}
+
+/* ---------- copy buttons (manual prompts + code blocks) ---------- */
+function cleanText(el) {
+  var c = el.cloneNode(true);
+  qa(".copy-btn", c).forEach(function (b) { b.parentNode.removeChild(b); });
+  return c.textContent.replace(/\u00a0/g, " ").replace(/\n{3,}/g, "\n\n").replace(/^\s+|\s+$/g, "");
+}
+function legacyCopy(text) {
+  var ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(ta);
+}
+function doCopy(text, btn) {
+  var ok = function () {
+    btn.textContent = "Copied!";
+    setTimeout(function () { btn.textContent = "Copy"; }, 1200);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok, function () { legacyCopy(text); ok(); });
+  } else {
+    legacyCopy(text); ok();
+  }
+}
+qa("pre, blockquote", panels.manual).forEach(function (el) {
+  el.classList.add("copyable");
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "copy-btn";
+  b.textContent = "Copy";
+  b.addEventListener("click", function () { doCopy(cleanText(el), b); });
+  el.appendChild(b);
+});
+
+/* ---------- search ---------- */
+var searchBox = document.getElementById("search");
+var searchCount = document.getElementById("search-count");
+var searchTimer = null;
+function clearSearch() {
+  qa("mark").forEach(function (m) {
+    if (m.parentNode) m.parentNode.replaceChild(document.createTextNode(m.textContent), m);
+  });
+  qa(".doc-flow").forEach(function (f) { f.normalize(); });
+  qa(".search-hidden").forEach(function (el) { el.classList.remove("search-hidden"); });
+  document.body.classList.remove("searching");
+  searchCount.textContent = "";
+}
+function splitMark(tn, q) {
+  var val = tn.nodeValue, low = val.toLowerCase();
+  var frag = document.createDocumentFragment(), pos = 0, idx = low.indexOf(q);
+  while (idx !== -1) {
+    frag.appendChild(document.createTextNode(val.slice(pos, idx)));
+    var mk = document.createElement("mark");
+    mk.textContent = val.slice(idx, idx + q.length);
+    frag.appendChild(mk);
+    pos = idx + q.length;
+    idx = low.indexOf(q, pos);
+  }
+  frag.appendChild(document.createTextNode(val.slice(pos)));
+  tn.parentNode.replaceChild(frag, tn);
+}
+function markIn(root, q) {
+  var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, function (n) {
+    if (!n.nodeValue || n.nodeValue.toLowerCase().indexOf(q) === -1) return NodeFilter.FILTER_SKIP;
+    var p = n.parentNode;
+    while (p && p !== root) {
+      var t = p.nodeName;
+      if (t === "SCRIPT" || t === "STYLE" || t === "INPUT" || t === "TEXTAREA" || t === "BUTTON" || t === "MARK")
+        return NodeFilter.FILTER_SKIP;
+      p = p.parentNode;
+    }
+    return NodeFilter.FILTER_ACCEPT;
+  });
+  var nodes = [], n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  nodes.forEach(function (tn) { splitMark(tn, q); });
+}
+function runSearch() {
+  var q = searchBox.value.trim().toLowerCase();
+  clearSearch();
+  if (q.length < 2) return;
+  var p = panels[current];
+  document.body.classList.add("searching");
+  markIn(p.querySelector(".doc-flow"), q);
+  qa(".md-body > *, .doc-flow > *", p).forEach(function (el) {
+    if (el.classList && el.classList.contains("md-section")) return;
+    if (!el.querySelector("mark")) el.classList.add("search-hidden");
+  });
+  qa(".md-section", p).forEach(function (s) {
+    if (!s.querySelector("mark")) s.classList.add("search-hidden");
+  });
+  var count = p.querySelectorAll("mark").length;
+  searchCount.textContent = count ? count + " match" + (count === 1 ? "" : "es") : "no matches";
+}
+searchBox.addEventListener("input", function () {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runSearch, 150);
+});
+searchBox.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") { searchBox.value = ""; clearSearch(); }
+});
+
+/* ---------- scroll spy ---------- */
+var ticking = false;
+function updateSpy() {
+  var p = panels[current];
+  if (!p) return;
+  var heads = qa(".sec-head", p), id = null;
+  for (var i = 0; i < heads.length; i++) {
+    if (heads[i].getBoundingClientRect().top <= 110) id = heads[i].id;
+    else break;
+  }
+  qa(".toc a").forEach(function (a) {
+    a.classList.toggle("current", a.getAttribute("href") === "#" + id);
+  });
+}
+window.addEventListener("scroll", function () {
+  if (ticking) return;
+  ticking = true;
+  requestAnimationFrame(function () { updateSpy(); ticking = false; });
+}, { passive: true });
+
+/* ---------- reset ---------- */
+document.getElementById("reset").addEventListener("click", function () {
+  if (!window.confirm("Reset all saved progress — checklists, gates, decisions?")) return;
+  var del = [], i;
+  try {
+    for (i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf(PREFIX) === 0 && k !== PREFIX + "theme") del.push(k);
+    }
+    del.forEach(function (k) { localStorage.removeItem(k); });
+  } catch (e) {}
+  location.reload();
+});
+
+/* ---------- init ---------- */
+setupGates();
+setupSteps();
+initPersist();
+setupDecisions();
+setupVariants();
+updateProgress();
+fromHash();
+updateSpy();
+})();
+</script>
+</body>
+</html>
