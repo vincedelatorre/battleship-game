@@ -1,8 +1,10 @@
+import type { CaptainId } from "./captains";
 import { inBounds, sameCoord } from "./coords";
 import { shipCells, validateFleet, type PlacementError } from "./placement";
 import { RULES, shipLength, type Rules, type ShipId } from "./rules";
 import type {
   Coord,
+  GambitState,
   GameEvent,
   GameState,
   Placement,
@@ -14,7 +16,12 @@ import type {
   ShotResult,
 } from "./types";
 
-export type CreateError = PlacementError | "incomplete_fleet";
+export type CreateError =
+  | PlacementError
+  | "incomplete_fleet"
+  | "missing_captains"
+  | "unexpected_captains";
+
 export type FireError =
   | "game_over"
   | "not_your_turn"
@@ -32,9 +39,19 @@ export function createGame(opts: {
   fleets: readonly [readonly Placement[], readonly Placement[]];
   rules?: Rules;
   firstPlayer?: PlayerIndex;
+  captains?: readonly [CaptainId, CaptainId];
 }): Result<GameState, CreateError> {
   const rules = opts.rules ?? RULES;
   const firstPlayer = opts.firstPlayer ?? 0;
+  let gambit: GambitState | undefined;
+  if (rules.gambit) {
+    if (!opts.captains) {
+      return { ok: false, error: "missing_captains" };
+    }
+    gambit = { captains: opts.captains, used: [false, false] };
+  } else if (opts.captains !== undefined) {
+    return { ok: false, error: "unexpected_captains" };
+  }
   const f0 = validateFleet(opts.fleets[0], rules);
   if (!f0.ok) {
     return { ok: false, error: f0.error };
@@ -53,11 +70,12 @@ export function createGame(opts: {
       winner: null,
       seq: 0,
       firstPlayer,
+      ...(gambit !== undefined ? { gambit } : {}),
     },
   };
 }
 
-/** Same rules, fresh state, firstPlayer alternates. */
+/** Same rules and captains, fresh state, firstPlayer alternates. */
 export function rematch(
   prev: GameState,
   fleets: readonly [readonly Placement[], readonly Placement[]],
@@ -66,6 +84,7 @@ export function rematch(
     fleets,
     rules: prev.rules,
     firstPlayer: prev.firstPlayer === 0 ? 1 : 0,
+    captains: prev.gambit?.captains,
   });
 }
 
@@ -89,26 +108,19 @@ export function remainingShips(state: GameState, owner: PlayerIndex): ShipId[] {
     .map((s) => s.id);
 }
 
-export function fire(
+/**
+ * Applies a validated shot (in bounds, untried, shooter's turn) and returns the
+ * new state plus its events. Sets status/winner when the fleet is wiped out but
+ * does NOT flip the turn — callers decide that. Internal; not re-exported.
+ */
+export function resolveShot(
   state: GameState,
   player: PlayerIndex,
   coord: Coord,
-): Result<{ state: GameState; events: GameEvent[] }, FireError> {
-  if (state.status === "over") {
-    return { ok: false, error: "game_over" };
-  }
-  if (player !== state.turn) {
-    return { ok: false, error: "not_your_turn" };
-  }
-  if (!inBounds(coord, state.rules)) {
-    return { ok: false, error: "out_of_bounds" };
-  }
-  const shooter = state.players[player];
-  if (shooter.shots.some((s) => sameCoord(s.coord, coord))) {
-    return { ok: false, error: "already_fired" };
-  }
-
+  seq: number,
+): { state: GameState; events: GameEvent[] } {
   const defenderIndex: PlayerIndex = player === 0 ? 1 : 0;
+  const shooter = state.players[player];
   const defender = state.players[defenderIndex];
   const target = shipAt(defender.fleet, coord, state.rules);
 
@@ -130,7 +142,6 @@ export function fire(
     );
   }
 
-  const seq = state.seq + 1;
   const shot: Shot =
     hitShip === undefined ? { coord, result } : { coord, result, shipId: hitShip };
   const events: GameEvent[] = [
@@ -151,22 +162,46 @@ export function fire(
     fleet: shooter.fleet,
     shots: [...shooter.shots, shot],
   };
-  const nextDefender: PlayerState = { fleet: defenderFleet, shots: defender.shots };
+  const nextDefender: PlayerState = {
+    fleet: defenderFleet,
+    shots: defender.shots,
+  };
   const players: [PlayerState, PlayerState] =
     player === 0 ? [nextShooter, nextDefender] : [nextDefender, nextShooter];
 
   return {
-    ok: true,
-    value: {
-      state: {
-        ...state,
-        players,
-        turn: gameOver ? player : defenderIndex,
-        status: gameOver ? "over" : "playing",
-        winner: gameOver ? player : null,
-        seq,
-      },
-      events,
+    state: {
+      ...state,
+      players,
+      status: gameOver ? "over" : "playing",
+      winner: gameOver ? player : null,
+      seq,
     },
+    events,
   };
+}
+
+export function fire(
+  state: GameState,
+  player: PlayerIndex,
+  coord: Coord,
+): Result<{ state: GameState; events: GameEvent[] }, FireError> {
+  if (state.status === "over") {
+    return { ok: false, error: "game_over" };
+  }
+  if (player !== state.turn) {
+    return { ok: false, error: "not_your_turn" };
+  }
+  if (!inBounds(coord, state.rules)) {
+    return { ok: false, error: "out_of_bounds" };
+  }
+  if (state.players[player].shots.some((s) => sameCoord(s.coord, coord))) {
+    return { ok: false, error: "already_fired" };
+  }
+  const r = resolveShot(state, player, coord, state.seq + 1);
+  const next =
+    r.state.status === "over"
+      ? r.state
+      : { ...r.state, turn: (player === 0 ? 1 : 0) as PlayerIndex };
+  return { ok: true, value: { state: next, events: r.events } };
 }

@@ -3,4 +3,22 @@ export * from "./types";
 export * from "./coords";
 export * from "./rng";
 export * from "./placement";
-export * from "./game";
+export * from "./captains";
+export {
+  createGame,
+  fire,
+  isSunk,
+  remainingShips,
+  rematch,
+  shipAt,
+  type CreateError,
+  type FireError,
+} from "./game";
+export {
+  blastCells,
+  powderKegLegal,
+  scoutArea,
+  useGambit,
+  type GambitError,
+  type GambitParams,
+} from "./gambit";

@@ -1,3 +1,4 @@
+import type { CaptainId, GambitKind } from "./captains";
 import type { Rules, ShipId } from "./rules";
 
 export type PlayerIndex = 0 | 1; // UI convention: 0 = human, 1 = AI
@@ -40,6 +41,12 @@ export interface PlayerState {
 
 export type GameStatus = "playing" | "over";
 
+/** Captain's Gambit per-side state: which captain and whether the Gambit is spent. */
+export interface GambitState {
+  readonly captains: readonly [CaptainId, CaptainId];
+  readonly used: readonly [boolean, boolean];
+}
+
 export interface GameState {
   readonly rules: Rules;
   readonly players: readonly [PlayerState, PlayerState];
@@ -49,6 +56,8 @@ export interface GameState {
   /** +1 per accepted action. */
   readonly seq: number;
   readonly firstPlayer: PlayerIndex;
+  /** Absent entirely when rules.gambit is false, so classic states are unchanged. */
+  readonly gambit?: GambitState;
 }
 
 export type GameEvent =
@@ -62,7 +71,18 @@ export type GameEvent =
     }
   /** emitted right after the 'shot' event whose result is 'sunk' */
   | { type: "sunk"; by: PlayerIndex; shipId: ShipId; seq: number }
-  | { type: "gameOver"; winner: PlayerIndex; seq: number };
+  | { type: "gameOver"; winner: PlayerIndex; seq: number }
+  /** Gambit announcement, always the first event of a Gambit. */
+  | {
+      type: "gambit";
+      by: PlayerIndex;
+      captain: CaptainId;
+      gambit: GambitKind;
+      seq: number;
+    }
+  | { type: "scout"; by: PlayerIndex; center: Coord; count: number; seq: number }
+  /** by = owner who moved the ship; the event carries NO position. */
+  | { type: "relocated"; by: PlayerIndex; shipId: ShipId; seq: number };
 
 export type Result<T, E extends string> =
   | { ok: true; value: T }
