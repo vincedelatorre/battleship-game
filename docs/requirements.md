@@ -58,6 +58,7 @@ Decided 2026-09-26. With the toggle **Off** (default), the game is exactly Secti
 - Start screen: switch "Captain's Gambit: Off / On", default **Off**. Persist the last choice in localStorage.
 - Engine config: `rules.gambit: boolean` (same single-rules-config pattern as 6.1). With `gambit: false`, no Gambit code path can run; classic tests must pass unchanged.
 - Gambit On adds a **Choose Your Captain** screen between Start and Placement.
+- Board and fleet are identical to Classic in both modes: 10x10, same 5 ships. A larger Gambit board (12x12) was considered and rejected: games ~40% longer, tighter mobile layout, and a second balance surface, for little gain since the Gambits already differentiate the mode.
 
 ### 1A.2 Gambit rules (apply to every captain)
 - Once per game per side. Using a Gambit **is** that side's turn (no normal shot that turn), except Crow's Nest, which is a free action followed by a normal shot.
@@ -377,3 +378,4 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 14 | AI gets a captain | Yes, random captain, rule-based Gambit use (1A.4) | Game Designer | 2026-09-26 |
 | 15 | Theme | Pirate theme everywhere; pirate ship display names (1B) | UX Designer | 2026-09-26 |
 | 16 | Captain names | Chosen by Devin during the build per naming brief (1A.5) | Game Designer | |
+| 17 | Gambit board size | 10x10, same as Classic (12x12 rejected, see 1A.1) | Game Designer | 2026-09-26 |
