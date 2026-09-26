@@ -60,7 +60,8 @@ Decided 2026-09-26. With the toggle **Off** (default), the game is exactly Secti
 - Gambit On adds a **Choose Your Captain** screen between Start and Placement.
 
 ### 1A.2 Gambit rules (apply to every captain)
-- Once per game per side. Using a Gambit **is** that side's turn (no normal shot that turn).
+- Once per game per side. Using a Gambit **is** that side's turn (no normal shot that turn), except Crow's Nest, which is a free action followed by a normal shot.
+- First player alternates on every Rematch (human first in the first game), to offset first-move advantage.
 - The Gambit is announced to the opponent by name before it resolves ("Cap'n invokes Powder Keg!").
 - Every shot a Gambit fires follows normal rules: reported as miss, or hit with the ship named; sinks announced; already-fired cells cannot be fired again.
 - If a Gambit's shots sink the last ship, the game ends immediately.
@@ -75,19 +76,26 @@ Captain names are **placeholders**; final names are chosen during the build (see
 |----|-----------|--------|--------------|-------------|
 | `captain-broadside` | Gunner | **Broadside** (triple shot) | Fire 3 shots at 3 different untried cells, anywhere, resolved in the order chosen; each result announced | All 3 cells must be untried. Stops early if the game is won |
 | `captain-powderkeg` | Demolitions | **Powder Keg** (small blast radius) | Plus-shaped blast: target cell + 4 orthogonal neighbours (clipped at the board edge); every in-bounds cell is fired at | **Open water only:** every in-bounds blast cell must be untried, and no blast cell may touch (orthogonally) a known hit on a ship not yet sunk. So it cannot be used to finish a ship already found |
-| `captain-crowsnest` | Navigator | **Crow's Nest** (scout) | Choose a 3x3 area; learn how many ship cells are in it (a number only: no positions, no names). No damage | Area clipped at edges; counts cells already hit too |
-| `captain-ghostship` | Trickster | **Ghost Ship** (relocate) | Move one of your own ships that has **not been hit** to a new legal position | New position must be legal (Section 1) and may not cover any cell the opponent has already fired at. So the opponent's misses stay true |
+| `captain-crowsnest` | Navigator | **Crow's Nest** (scout) | **Free action:** choose a 3x3 area and learn how many ship cells are in it (a number only: no positions, no names), then take your normal shot. No damage | Area clipped at edges; counts cells already hit too |
+| `captain-ghostship` | Trickster | **Ghost Ship** (escape) | Move one of your own ships that is **not sunk** (damaged is allowed) to a new legal position. It keeps its damage (e.g. a Frigate hit once still needs 2 more hits). Announced with the ship's name ("The Frigate slipped away!"), but not its new position. Earlier hits stay on the opponent's Target Grid as history | New position must be legal (Section 1) and may not cover any cell the opponent has already fired at. So the opponent's misses stay true |
 
-Open question for the build (defaults shown): Powder Keg shape is a plus (5 cells), not 3x3 (9 cells), to keep it balanced against Broadside's 3.
+Powder Keg stays a plus (5 cells), not 3x3 (9 cells), to keep it balanced against Broadside's 3.
+
+Balance rationale (analytical estimate, to be confirmed by 1A.6): Powder Keg ≈ +4 hunt shots, Broadside ≈ +2 flexible shots, Crow's Nest free information, Ghost Ship erases the opponent's lead on a found ship (≈ 3–6 of their shots). The original Crow's Nest (cost a turn) and Ghost Ship (un-hit ships only) were judged too weak and changed.
 
 ### 1A.4 AI captain
 - In Gambit mode the AI picks a random captain (different from the player's if possible) and shows it in its portrait frame.
 - AI uses its Gambit with a simple, testable rule, using only information a human would have:
   - Broadside: in hunt mode (no damaged ship pending) after turn 10, on the 3 best hunt cells.
   - Powder Keg: in hunt mode, on the legal open-water cell whose blast covers the most untried cells.
-  - Crow's Nest: in hunt mode on its first eligible turn after turn 5, on the 3x3 with the most untried cells; the count then weights its hunting.
-  - Ghost Ship: the first time one of its ships is hit, it relocates its largest un-hit ship.
-- Medium AI must handle Ghost Ship correctly: relocation only lands on cells the AI has not fired at, so its misses stay valid.
+  - Crow's Nest (free action): in hunt mode on its first turn after turn 5, on the 3x3 with the most untried cells; the count then weights its hunting, and it still fires that turn.
+  - Ghost Ship: right after one of its ships takes its first hit and is not sunk, it relocates that damaged ship.
+- Medium AI must handle the player's Ghost Ship correctly: when a ship is announced as relocated, drop that ship's hits from its target list (they are history now) and treat the ship as unfound with its remaining length; misses stay valid.
+
+### 1A.6 Balance test (measured, not guessed)
+- A headless script plays Medium-AI vs Medium-AI games for all 16 captain pairings, ≥ 1,000 games each, with fixed seeds, alternating first player.
+- Reports each captain's win rate overall and when moving first vs second, plus average game length per pairing.
+- **Target:** every captain wins 45–55% against the field. If one falls outside, tune a single parameter (e.g. Powder Keg to 4 cells, Crow's Nest area size, Broadside to 2 shots) and rerun. Record final numbers in the README for the debrief.
 
 ### 1A.5 Captain identity, naming brief, portraits
 - **Naming (done by Devin during the build):** four original pirate names, pronounceable, distinct first letters, fitting each archetype. No real people, no existing fictional or trademarked characters (e.g. no Jack Sparrow, Davy Jones, Hook). Each captain also gets: a flag (colour + emblem), a one-line bio, and short voice lines for select, hit, miss, sink, Gambit, victory, defeat.
@@ -330,6 +338,7 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 - [ ] Live URL tested in an incognito window.
 - [ ] Classic mode (Gambit Off) passes every classic test unchanged.
 - [ ] Each of the 4 Gambits tested in the engine (legal, illegal, once-only), and a full Gambit-mode game played with each captain.
+- [ ] Balance test (1A.6) run; every captain within 45–55% win rate; numbers in README.
 - [ ] Captain names, flags and portraits are original (no copyrighted characters or assets).
 
 ## 8. Risk Register
@@ -357,7 +366,7 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 3 | Platform | Web browser, responsive (desktop + mobile) | Orchestrator | 2026-09-26 |
 | 4 | MVP scope | v0.1 = all "Must" requirements (incl. pirate theme and Captain's Gambit), Easy + Medium AI; Hard (F16) and Adaptive Hard (F18) later | Orchestrator | 2026-09-26 |
 | 5 | Constraints | Due before onsite; free hosting; stack explainable line by line | Orchestrator | 2026-09-26 |
-| 6 | Who fires first | Human fires first (default; revisit) | Game Designer | 2026-09-26 |
+| 6 | Who fires first | Human fires first in the first game; alternates on every Rematch | Game Designer | 2026-09-26 |
 | 7 | Placement modes | Manual (click + rotate) and Randomize | Game Designer | 2026-09-26 |
 | 8 | AI difficulties in MVP | Easy (random) + Medium (hunt/target, hits grouped by ship name) | Game Designer | 2026-09-26 |
 | 9 | Client-only vs server-authoritative | Client-only for v0.1; server-authoritative (Vercel Functions) documented as production design | Systems Engineer | 2026-09-26 |
