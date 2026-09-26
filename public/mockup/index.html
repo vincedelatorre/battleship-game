@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pirate Battleship — screen mockup (design review)</title>
+<link rel="icon" href="data:,">
+<style>
+/* ===== Palette: docs/requirements.md §1C.8 ===== */
+:root{
+  --parchment:#d8c39a;      /* charts, panels */
+  --brass:#b08d57;          /* frames, trim, buttons */
+  --oak:#4a3322;            /* hulls, frames */
+  --deep:#0b3440;           /* water, deep */
+  --teal:#1f6f78;           /* water, surface */
+  --accent:#e0582a;         /* sunset, fire, hit */
+  --slate:#1c2430;          /* fog of war, night */
+  --ink:#241708;            /* text on parchment/brass (contrast ≥ 4.5:1) */
+  --parch-hi:#efe0bd;       /* lighter parchment for text on slate */
+  --good:#2e7d32;           /* valid ghost green (paired w/ solid border) */
+  --bad:#c62828;            /* invalid ghost red (paired w/ stripes) */
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#3a3a3a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;min-height:100vh}
+
+/* ===== Review bar (outside the game frame, plain) ===== */
+.reviewbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  padding:8px 10px;background:#e8e8e8;border-bottom:1px solid #bbb;
+  font-size:12px;color:#222;
+}
+.reviewbar .lbl{font-weight:600;margin-right:4px}
+.reviewbar button{
+  font:inherit;padding:4px 8px;border:1px solid #999;border-radius:4px;
+  background:#fff;cursor:pointer;color:#222;
+}
+.reviewbar button[aria-pressed="true"]{background:#333;color:#fff;border-color:#333}
+.reviewbar .sep{width:1px;height:18px;background:#bbb;margin:0 4px}
+
+/* ===== Game frame ===== */
+.stage{flex:1;display:flex;justify-content:center}
+.frame{
+  width:min(1440px,100%);
+  background:var(--slate);
+  color:var(--parch-hi);
+  font-family:Georgia,'Times New Roman',serif;
+  position:relative;
+  display:flex;flex-direction:column;
+  box-shadow:0 6px 30px rgba(0,0,0,.5);
+}
+.frame.phone{width:360px}
+.screen{display:none;position:relative;overflow:hidden;flex:1}
+.screen.active{display:flex;flex-direction:column}
+
+/* ===== Ocean placeholder ===== */
+.ocean{
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,#0b3440 0%,#0f4250 45%,#1f6f78 100%);
+}
+.ocean svg{position:absolute;inset:0;width:100%;height:100%;animation:waveDrift 14s linear infinite}
+.ocean .tag{
+  position:absolute;top:10px;left:10px;
+  font:11px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  color:#cfe8ea;background:rgba(11,52,64,.75);
+  border:1px dashed rgba(207,232,234,.6);border-radius:3px;padding:3px 7px;
+  letter-spacing:.04em;
+}
+@keyframes waveDrift{to{transform:translateX(-60px)}}
+
+/* ===== Shared HUD chrome ===== */
+.panel{
+  background:var(--parchment);
+  border:3px solid var(--oak);
+  outline:2px solid var(--brass);
+  border-radius:4px;color:var(--ink);
+}
+.panel .ptitle{
+  font-family:Georgia,serif;font-weight:700;font-size:13px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink);
+  border-bottom:2px solid var(--brass);padding:4px 10px;margin:0;
+}
+.btn{
+  display:inline-block;font-family:Georgia,serif;font-weight:700;
+  color:var(--ink);text-decoration:none;cursor:pointer;
+  background:linear-gradient(180deg,#c8a568,var(--brass) 55%,#8f6f3f);
+  border:2px solid var(--oak);border-radius:4px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 0 rgba(0,0,0,.35);
+  padding:9px 22px;font-size:15px;letter-spacing:.04em;
+}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.55;cursor:not-allowed;box-shadow:none}
+.btn.small{padding:5px 12px;font-size:12px}
+button:focus-visible,[tabindex]:focus-visible,a:focus-visible{
+  outline:3px solid #fff;outline-offset:1px;box-shadow:0 0 0 5px var(--accent);
+}
+.std-only{display:none}
+.frame.standard .std-only{display:initial}
+.frame.standard .gmb-only{display:none !important}
+
+/* ===== Screen 1: Intro ===== */
+.s-intro{background:#000;color:#999}
+.s-intro.active{align-items:center;justify-content:center;gap:18px}
+.s-intro .film{
+  font-family:Georgia,serif;font-size:22px;color:#666;
+  border:1px dashed #555;padding:60px 80px;letter-spacing:.05em;
+}
+.s-intro .skip{font-family:-apple-system,sans-serif;font-size:12px;color:#777;letter-spacing:.15em;text-transform:uppercase}
+
+/* ===== Screen 2: Main menu ===== */
+.s-menu .inner{
+  position:relative;flex:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+}
+.logo{font-size:52px;font-weight:700;letter-spacing:.14em;color:var(--parch-hi);text-shadow:0 3px 0 var(--oak),0 6px 18px rgba(0,0,0,.6);margin:0}
+.subtitle{font-size:18px;color:var(--brass);letter-spacing:.3em;text-transform:uppercase;margin:0 0 34px;font-style:italic;text-shadow:0 2px 6px #000}
+.menu-stack{display:flex;flex-direction:column;gap:14px;min-width:240px}
+.music-btn{position:absolute;right:16px;bottom:14px;background:rgba(28,36,48,.8);border:2px solid var(--brass);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.music-btn svg{width:24px;height:24px;fill:var(--parch-hi)}
+
+/* ===== Screen 3: Loading ===== */
+.s-loading .inner{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:14vh;gap:16px}
+.lore{position:relative;height:3.2em;width:min(560px,86%);text-align:center}
+.lore p{position:absolute;inset:0;margin:0;font-style:italic;font-size:16px;color:var(--parch-hi);opacity:0;animation:loreCycle 9s infinite}
+.lore p:nth-child(2){animation-delay:3s}
+.lore p:nth-child(3){animation-delay:6s}
+@keyframes loreCycle{0%{opacity:0}5%{opacity:1}30%{opacity:1}35%,100%{opacity:0}}
+.progress{width:min(420px,80%);height:10px;border:2px solid var(--oak);background:var(--slate);border-radius:6px;overflow:hidden}
+.progress i{display:block;height:100%;width:62%;background:linear-gradient(90deg,var(--brass),#d9b578)}
+
+/* ===== Screen 4: Mode & difficulty ===== */
+.s-mode .inner,.s-captain .inner,.s-over .inner,.s-settings .inner{
+  position:relative;flex:1;padding:26px 30px;
+  display:flex;flex-direction:column;align-items:center;gap:18px;
+}
+.scr-title{font-size:26px;letter-spacing:.1em;text-transform:uppercase;color:var(--parch-hi);margin:0;text-shadow:0 2px 6px #000}
+.cards{display:flex;gap:22px;flex-wrap:wrap;justify-content:center}
+.mode-card{
+  width:280px;padding:24px 22px;cursor:pointer;text-align:left;
+  background:var(--parchment);color:var(--ink);
+  border:3px solid var(--oak);outline:2px solid var(--brass);border-radius:6px;
+}
+.mode-card h3{margin:0 0 6px;font-size:20px;letter-spacing:.05em}
+.mode-card p{margin:0;font-family:-apple-system,sans-serif;font-size:13px;color:#3c2a14}
+.mode-card.sel{outline:4px solid var(--accent);transform:scale(1.03)}
+.mode-card .tick{font-family:-apple-system,sans-serif;font-size:11px;color:#7a5b23;letter-spacing:.1em;text-transform:uppercase}
+.diff{display:flex;gap:0;border:2px solid var(--oak);border-radius:6px;overflow:hidden}
+.diff button{font:inherit;border:0;padding:8px 20px;cursor:pointer;background:var(--parchment);color:var(--ink)}
+.diff button.sel{background:var(--brass);font-weight:700}
+.rowbtns{display:flex;gap:14px;margin-top:6px}
+
+/* ===== Screen 5: Choose captain ===== */
+.cap-card{
+  width:200px;padding:14px 12px 16px;text-align:center;cursor:pointer;
+  background:var(--parchment);color:var(--ink);
+  border:3px solid var(--oak);outline:2px solid var(--brass);border-radius:6px;
+  transition:transform .3s,filter .3s;
+}
+.cap-grid{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;max-width:1000px}
+.cap-card.sel{transform:scale(1.07) translateY(-6px);outline:3px solid var(--accent);z-index:2}
+.cap-grid.sel-made .cap-card:not(.sel){filter:blur(1.5px) brightness(.65)}
+.portrait{
+  width:104px;height:104px;margin:0 auto 8px;border-radius:4px;
+  border:3px solid var(--brass);background:var(--slate);overflow:hidden;
+  animation:breathe 4s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+.cap-card h4{margin:4px 0 0;font-size:15px}
+.cap-card .arch{margin:0;font-family:-apple-system,sans-serif;font-size:11px;color:#5a4423;text-transform:uppercase;letter-spacing:.08em}
+.flag{display:inline-block;width:34px;height:22px;border:1px solid var(--oak);vertical-align:middle;margin-top:6px}
+.gambit-line{margin:8px 0 0;font-family:-apple-system,sans-serif;font-size:11px;line-height:1.35;color:#3c2a14;border-top:1px solid var(--brass);padding-top:7px}
+.gambit-line b{color:#7a2c10}
+.speech{
+  position:relative;margin:8px auto 0;max-width:180px;
+  font-family:-apple-system,sans-serif;font-size:11px;font-style:italic;
+  background:#f4e8c8;border:1px solid var(--oak);border-radius:8px;padding:5px 8px;
+}
+.speech::before{content:"";position:absolute;top:-7px;left:50%;margin-left:-5px;border:5px solid transparent;border-bottom-color:var(--oak)}
+.cosmetic{margin-top:8px;font-family:-apple-system,sans-serif;font-size:10px;color:#6b5228;font-style:italic}
+
+/* ===== Screen 6: Placement ===== */
+.s-place .inner{position:relative;flex:1;display:flex;gap:20px;padding:22px;align-items:stretch}
+.place-side{width:270px;display:flex;flex-direction:column;gap:12px}
+.shiplist{display:flex;flex-direction:column;gap:6px;padding:10px}
+.shiprow{
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:-apple-system,sans-serif;font-size:13px;
+  padding:6px 10px;border:1px solid var(--brass);border-radius:3px;color:var(--ink);
+}
+.shiprow.sel{outline:3px solid var(--accent);background:#e8d7ae}
+.shiprow.placed{opacity:.75}
+.shiprow.placed::after{content:"✔ placed";font-size:10px;color:#2e7d32;margin-left:6px}
+.shiprow .len{font-size:11px;color:#5a4423}
+.place-chart{margin-left:auto;padding:12px}
+.place-actions{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.kbd{font-family:-apple-system,sans-serif;font-size:10px;color:#5a4423}
+
+/* ===== Charts ===== */
+.chart{display:grid;grid-template-columns:15px repeat(10,23px);grid-auto-rows:23px;gap:0;background:#c9b383;padding:4px;width:max-content}
+.frame.phone .chart{grid-template-columns:14px repeat(10,26px);grid-auto-rows:26px}
+.chart .ax{display:flex;align-items:center;justify-content:center;font:10px -apple-system,sans-serif;color:#4a3322;font-weight:700}
+.chart .cell{
+  border:1px solid rgba(74,51,34,.35);background:#d8c39a;cursor:pointer;
+  position:relative;padding:0;margin:0;font-size:11px;
+}
+.chart .cell:hover{background:#e9d9b2}
+.chart .cell.miss::after{
+  content:"";position:absolute;inset:5px;border:2px solid #fff;border-radius:50%;
+  box-shadow:0 0 0 1px rgba(74,51,34,.5);
+}
+.chart .cell.hit::before,.chart .cell.hit::after{
+  content:"";position:absolute;left:3px;right:3px;top:50%;height:3px;margin-top:-1.5px;
+  background:var(--accent);border:1px solid #7a2008;
+}
+.chart .cell.hit::before{transform:rotate(45deg)}
+.chart .cell.hit::after{transform:rotate(-45deg)}
+.chart .cell.sunk{
+  background:repeating-linear-gradient(45deg,#d8c39a,#d8c39a 3px,#b39a6e 3px,#b39a6e 6px);
+}
+.chart .cell.own{background:#8a6f4d;box-shadow:inset 0 0 0 1px #4a3322}
+.chart .cell.own.hit{background:#8a6f4d}
+.chart .cell.ghost-ok{box-shadow:inset 0 0 0 3px var(--good);background:#b9d8a0}
+.chart .cell.ghost-bad{
+  box-shadow:inset 0 0 0 3px var(--bad);
+  background:repeating-linear-gradient(45deg,#e5b8b0,#e5b8b0 3px,#d9909a 3px,#d9909a 6px);
+}
+.chart .cell.kcursor{outline:3px solid #1a4fd6;outline-offset:-3px;z-index:1}
+.chart .cell.fleet-out{box-shadow:inset 0 0 0 2px var(--teal)}
+
+/* ===== Screen 7: Battle ===== */
+.s-battle{display:none}
+.s-battle.active{display:flex;flex-direction:column}
+.topbar{
+  position:relative;z-index:3;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:linear-gradient(180deg,#5a4028,var(--oak));
+  border-bottom:3px solid var(--brass);padding:7px 12px;
+  font-family:-apple-system,sans-serif;font-size:13px;color:var(--parch-hi);
+}
+.topbar .turn{font-family:Georgia,serif;font-size:16px;font-weight:700;color:var(--parch-hi);letter-spacing:.03em}
+.topbar .tb-btn{
+  font:inherit;font-size:12px;color:var(--parch-hi);cursor:pointer;
+  background:#3a2a1a;border:1px solid var(--brass);border-radius:3px;padding:4px 10px;
+}
+.topbar .tb-btn[aria-pressed="true"]{background:var(--brass);color:var(--ink);font-weight:700}
+.topbar .spacer{flex:1}
+.battle-body{position:relative;flex:1;min-height:520px}
+.battle-body .ocean{position:absolute}
+.hud{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;pointer-events:none}
+.hud .dock{display:flex;gap:14px;align-items:flex-end;justify-content:space-between;padding:12px;pointer-events:auto}
+.chart-grp{display:flex;gap:0;align-items:flex-end}
+.chart-grp .panel{padding:0}
+.chart-wrap{padding:8px}
+/* StarCraft-style talking-head frames, attached to each chart's outer edge */
+.cap-frame{
+  width:150px;flex:none;background:var(--slate);
+  border:4px solid var(--brass);box-shadow:inset 0 0 0 2px var(--oak),0 4px 12px rgba(0,0,0,.5);
+  border-radius:5px;padding:7px 7px 0;text-align:center;color:var(--parch-hi);
+}
+.cap-frame .portrait{width:126px;height:140px;margin:0 auto;overflow:hidden}
+.cap-frame .capname{
+  display:block;background:var(--oak);color:var(--parch-hi);
+  font-family:-apple-system,sans-serif;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;padding:4px 2px;margin:7px -7px 0;
+  border-top:2px solid var(--brass);
+}
+.voice{
+  position:absolute;right:calc(100% + 8px);top:6px;width:148px;
+  font-family:-apple-system,sans-serif;font-size:11px;font-style:italic;
+  background:#f4e8c8;color:var(--ink);border:1px solid var(--oak);border-radius:8px;padding:5px 9px;
+  text-align:left;
+}
+.voice::after{
+  content:"";position:absolute;right:-9px;top:14px;
+  border:5px solid transparent;border-left-color:var(--oak);
+}
+.portrait-wrap{position:relative;margin-left:162px}
+/* phone: portrait moves inside the chart panel header */
+.panel-head{display:none;align-items:center;gap:9px;padding:7px 10px 0;font-family:-apple-system,sans-serif;color:var(--ink)}
+.panel-head .mini-avatar{width:48px;height:48px;flex:none;border:2px solid var(--brass);border-radius:4px;background:var(--slate);overflow:hidden}
+.panel-head b{font-size:12px;display:block}
+.panel-head i{font-size:11px;display:block;margin-top:2px}
+.hud-mid{display:flex;flex-direction:column;gap:8px;width:380px;max-width:34vw}
+.logpanel ul{margin:0;padding:6px 10px 8px;list-style:none;font-family:-apple-system,sans-serif;font-size:11.5px;line-height:1.5;color:var(--ink)}
+.logpanel li:first-child{font-weight:700}
+.logpanel .turn-no{color:#7a5b23;font-weight:700}
+.manifest{padding:6px 10px 9px;display:flex;flex-direction:column;gap:5px}
+.mani-row{display:flex;gap:6px;align-items:center;font-family:-apple-system,sans-serif;font-size:11px;color:var(--ink)}
+.mani-row .who{width:58px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#5a4423}
+.chip{border:1px solid var(--oak);border-radius:3px;padding:2px 7px;font-size:10.5px;background:#efe0bd;color:var(--ink)}
+.chip.sunk{background:#b9a06f;color:#4a3322;text-decoration:line-through;position:relative}
+.gambit-strip{display:flex;gap:10px;align-items:flex-end}
+.gstate{display:flex;flex-direction:column;align-items:center;gap:3px;font-family:-apple-system,sans-serif;font-size:9px;color:#5a4423}
+.gambit-btn{
+  width:64px;height:64px;border-radius:50%;cursor:pointer;
+  border:3px solid var(--oak);
+  font-family:Georgia,serif;font-weight:700;font-size:11px;color:var(--ink);
+  background:radial-gradient(circle at 35% 30%,#d9b578,var(--brass) 70%);
+  box-shadow:0 3px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.4);
+}
+.gambit-btn.unavail{filter:grayscale(.6) brightness(.8)}
+.gambit-btn.spent{filter:grayscale(1) brightness(.55)}
+.gstate .reason{font-size:8px;max-width:78px;text-align:center;color:#7a4a2a}
+.killcam{
+  align-self:flex-start;width:170px;background:#000;border:2px solid var(--brass);border-radius:3px;
+  color:#cfe8ea;font-family:-apple-system,sans-serif;font-size:9px;text-align:center;
+}
+.killcam .frame-img{position:relative;height:56px;border-top:9px solid #000;border-bottom:9px solid #000;background:linear-gradient(180deg,#1c2430,#0b3440)}
+.killcam .cap{padding:3px 4px}
+.ghost-note{font-family:-apple-system,sans-serif;font-size:9px;color:#5a4423;text-align:center}
+
+/* phone layout: real media query (viewport) + .frame.phone (review toggle) */
+@media (max-width:520px){
+  .screen{overflow-y:auto;overflow-x:hidden}
+  .s-intro .film{padding:30px 18px;font-size:16px}
+  .logo{font-size:29px;letter-spacing:.07em}
+  .subtitle{font-size:14px;letter-spacing:.2em;margin-bottom:22px}
+  .menu-stack{min-width:210px}
+  .s-mode .inner,.s-captain .inner,.s-over .inner,.s-settings .inner{padding:18px 14px}
+  .s-place .inner{flex-direction:column;align-items:center;padding:14px}
+  .place-side{width:auto;max-width:330px}
+  .place-chart{margin:0}
+  .mode-card{width:min(300px,86vw)}
+  .cap-card{width:200px}
+  /* battle: 3D strip, then Enemy Waters, Your Fleet, log/manifest/gambit */
+  .s-battle{overflow-y:auto}
+  .battle-body{min-height:0;display:flex;flex-direction:column}
+  .battle-body .ocean{position:relative;height:140px;flex:none}
+  .hud{position:static}
+  .hud .dock{flex-direction:column;align-items:center;padding:10px}
+  .grp-left{order:1}.grp-right{order:2}.hud-mid{order:3}
+  .chart{grid-template-columns:14px repeat(10,26px);grid-auto-rows:26px}
+  .chart-wrap{padding:6px}
+  .portrait-wrap{display:none}
+  .cap-frame{display:none}
+  .panel-head{display:flex}
+  .hud-mid{width:auto;max-width:none;align-self:stretch}
+  .killcam{align-self:center}
+}
+.frame.phone .screen{overflow-y:auto;overflow-x:hidden}
+.frame.phone .s-intro .film{padding:30px 18px;font-size:16px}
+.frame.phone .logo{font-size:29px;letter-spacing:.07em}
+.frame.phone .subtitle{font-size:14px;letter-spacing:.2em;margin-bottom:22px}
+.frame.phone .menu-stack{min-width:210px}
+.frame.phone .s-mode .inner,.frame.phone .s-captain .inner,
+.frame.phone .s-over .inner,.frame.phone .s-settings .inner{padding:18px 14px}
+.frame.phone .s-place .inner{flex-direction:column;align-items:center;padding:14px}
+.frame.phone .place-side{width:auto;max-width:330px}
+.frame.phone .place-chart{margin:0}
+.frame.phone .mode-card{width:min(300px,86vw)}
+.frame.phone .cap-card{width:200px}
+.frame.phone .s-battle{overflow-y:auto}
+.frame.phone .battle-body{min-height:0;display:flex;flex-direction:column}
+.frame.phone .battle-body .ocean{position:relative;height:140px;flex:none}
+.frame.phone .hud{position:static}
+.frame.phone .hud .dock{flex-direction:column;align-items:center;padding:10px}
+.frame.phone .grp-left{order:1}.frame.phone .grp-right{order:2}.frame.phone .hud-mid{order:3}
+.frame.phone .chart-wrap{padding:6px}
+.frame.phone .portrait-wrap{display:none}
+.frame.phone .cap-frame{display:none}
+.frame.phone .panel-head{display:flex}
+.frame.phone .hud-mid{width:auto;max-width:none;align-self:stretch}
+.frame.phone .killcam{align-self:center}
+
+/* ===== Screen 8: Game over ===== */
+.over-banner{font-size:34px;color:var(--parch-hi);margin:0;text-shadow:0 3px 0 var(--oak)}
+.over-sub{color:var(--brass);font-style:italic;margin:0}
+.stats{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.stat{background:var(--parchment);color:var(--ink);border:3px solid var(--oak);outline:2px solid var(--brass);border-radius:5px;padding:10px 18px;text-align:center;min-width:92px}
+.stat b{display:block;font-size:22px}
+.stat span{font-family:-apple-system,sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#5a4423}
+.reveal{display:flex;flex-direction:column;align-items:center;gap:6px}
+
+/* ===== Screen 9: Settings ===== */
+.settings-box{width:min(560px,92%);padding-bottom:14px}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 16px;border-bottom:1px solid var(--brass);font-family:-apple-system,sans-serif;font-size:13px;color:var(--ink)}
+.set-row label{font-weight:600}
+.set-row select,.set-row input[type=range]{accent-color:#7a5b23}
+.set-row input[type=checkbox]{width:18px;height:18px;accent-color:#7a5b23}
+.controls-ref{padding:8px 16px;font-family:-apple-system,sans-serif;font-size:12px;color:var(--ink);columns:2;line-height:1.9}
+.controls-ref kbd{background:#efe0bd;border:1px solid var(--oak);border-radius:3px;padding:1px 5px;font-family:inherit}
+
+/* Reduced motion */
+@media (prefers-reduced-motion:reduce){
+  .ocean svg,.portrait{animation:none}
+  .lore p{animation:none;opacity:0}
+  .lore p:first-child{opacity:1}
+  .cap-card{transition:none}
+}
+</style>
+</head>
+<body>
+
+<div class="reviewbar" aria-label="Design review controls — not part of the game UI">
+  <span class="lbl">REVIEW&nbsp;·&nbsp;screen:</span>
+  <button data-goto="intro">Intro</button>
+  <button data-goto="menu" aria-pressed="true">Main menu</button>
+  <button data-goto="loading">Loading</button>
+  <button data-goto="mode">Mode</button>
+  <button data-goto="captain">Captain</button>
+  <button data-goto="placement">Placement</button>
+  <button data-goto="battle">Battle</button>
+  <button data-goto="gameover">Game over</button>
+  <button data-goto="settings">Settings</button>
+  <span class="sep"></span>
+  <button id="modeToggle" aria-pressed="true" title="Show or hide Captain's Gambit UI">Mode: Gambit</button>
+  <button id="sizeToggle" aria-pressed="false" title="Constrain the game frame to 360 px">Desktop</button>
+</div>
+
+<div class="stage">
+<div class="frame" id="frame">
+
+<!-- ============ 1. INTRO ============ -->
+<section class="screen s-intro" data-screen="intro">
+  <div class="film">Intro film — Higgsfield / Runway, later</div>
+  <div class="skip">Press any key to skip</div>
+</section>
+
+<!-- ============ 2. MAIN MENU ============ -->
+<section class="screen s-menu active" data-screen="menu">
+  <div class="ocean"><svg viewBox="0 0 800 200" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M-60 60 Q40 30 140 60 T340 60 T540 60 T740 60 T940 60" fill="none" stroke="#2a8a94" stroke-width="3" opacity=".35"/>
+    <path d="M-60 110 Q40 80 140 110 T340 110 T540 110 T740 110 T940 110" fill="none" stroke="#2a8a94" stroke-width="4" opacity=".25"/>
+    <path d="M-60 165 Q40 135 140 165 T340 165 T540 165 T740 165 T940 165" fill="none" stroke="#1f6f78" stroke-width="5" opacity=".3"/>
+  </svg><span class="tag">3D ocean — three.js · flagship at anchor, dusk sky</span></div>
+  <div class="inner">
+    <h1 class="logo">PIRATE BATTLESHIP</h1>
+    <p class="subtitle">The Drowned Strait</p>
+    <nav class="menu-stack" aria-label="Main menu">
+      <button class="btn">Set Sail</button>
+      <button class="btn">Settings</button>
+      <button class="btn">Credits</button>
+    </nav>
+    <button class="music-btn" aria-label="Music: on" aria-pressed="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 8a5 5 0 0 1 0 8" fill="none" stroke="#efe0bd" stroke-width="2" stroke-linecap="round"/><path d="M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="#efe0bd" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- ============ 3. LOADING ============ -->
+<section class="screen s-loading" data-screen="loading">
+  <div class="ocean"><span class="tag">3D ocean — three.js</span></div>
+  <div class="inner">
+    <div class="lore" aria-label="Loading lore">
+      <p>“The Code: never strike your colours before the last cannon speaks.”</p>
+      <p>“The Strait remembers every hull she's swallowed — and she is always hungry.”</p>
+      <p>“Chart your shots, mind the fog, and let the gulls count your misses.”</p>
+    </div>
+    <div class="progress" role="progressbar" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100" aria-label="Loading"><i></i></div>
+  </div>
+</section>
+
+<!-- ============ 4. MODE & DIFFICULTY ============ -->
+<section class="screen s-mode" data-screen="mode">
+  <div class="ocean"><span class="tag">3D ocean — three.js</span></div>
+  <div class="inner">
+    <h2 class="scr-title">Choose your waters</h2>
+    <div class="cards" role="radiogroup" aria-label="Game mode">
+      <button class="mode-card" role="radio" aria-checked="false">
+        <span class="tick">Mode</span>
+        <h3>Standard</h3>
+        <p>Classic rules. Pure seamanship.</p>
+      </button>
+      <button class="mode-card sel" role="radio" aria-checked="true">
+        <span class="tick">Mode</span>
+        <h3>Gambit</h3>
+        <p>Each captain carries one secret power.</p>
+      </button>
+    </div>
+    <div class="diff" role="radiogroup" aria-label="Difficulty">
+      <button role="radio" aria-checked="false">Deckhand</button>
+      <button class="sel" role="radio" aria-checked="true">Buccaneer</button>
+    </div>
+    <div class="rowbtns">
+      <button class="btn small">Back</button>
+      <button class="btn">Choose Captain</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. CHOOSE CAPTAIN ============ -->
+<section class="screen s-captain" data-screen="captain">
+  <div class="ocean"><span class="tag">3D ocean — three.js</span></div>
+  <div class="inner">
+    <h2 class="scr-title">Choose your captain</h2>
+    <div class="cap-grid sel-made">
+
+      <button class="cap-card">
+        <span class="portrait" aria-hidden="true"><svg viewBox="0 0 104 104">
+          <circle cx="52" cy="40" r="20" fill="#241708"/>
+          <path d="M20 104 Q22 66 52 62 Q82 66 84 104 Z" fill="#241708"/>
+          <path d="M30 34 Q52 16 74 34 L74 27 Q52 10 30 27 Z" fill="#8a2f1a"/>
+          <circle cx="40" cy="30" r="2.2" fill="#4a3322"/><circle cx="60" cy="26" r="1.8" fill="#4a3322"/><circle cx="50" cy="32" r="1.4" fill="#4a3322"/>
+        </svg></span>
+        <h4>Captain Broadside</h4>
+        <p class="arch">Gunner</p>
+        <span class="flag" style="background:linear-gradient(180deg,#8a2f1a 55%,#241708 55%)" title="Flag: blood-red over black"></span>
+        <p class="gambit-line gmb-only"><b>Broadside</b> — fire 3 shots at 3 untried cells, anywhere.</p>
+        <p class="cosmetic std-only">Cosmetic in Standard mode</p>
+      </button>
+
+      <button class="cap-card sel" aria-current="true">
+        <span class="portrait" aria-hidden="true"><svg viewBox="0 0 104 104">
+          <circle cx="52" cy="44" r="20" fill="#241708"/>
+          <path d="M20 104 Q22 70 52 66 Q82 70 84 104 Z" fill="#241708"/>
+          <path d="M64 22 Q76 14 78 4" fill="none" stroke="#6b4a2a" stroke-width="3"/>
+          <circle cx="79" cy="4" r="3.5" fill="#e0582a"/><circle cx="84" cy="9" r="1.6" fill="#e0582a"/><circle cx="74" cy="0" r="1.4" fill="#f4e8c8"/>
+        </svg></span>
+        <h4>Captain Powderkeg</h4>
+        <p class="arch">Demolitions</p>
+        <span class="flag" style="background:linear-gradient(90deg,#4a3322 33%,#e0582a 33%,#e0582a 66%,#4a3322 66%)" title="Flag: oak and ember bars"></span>
+        <p class="gambit-line gmb-only"><b>Powder Keg</b> — plus-shaped 5-cell blast; open water only.</p>
+        <p class="speech gmb-only">“Fuse lit. Stand clear o' the splash, ye hear?”</p>
+        <p class="cosmetic std-only">Cosmetic in Standard mode</p>
+      </button>
+
+      <button class="cap-card">
+        <span class="portrait" aria-hidden="true"><svg viewBox="0 0 104 104">
+          <circle cx="52" cy="42" r="20" fill="#241708"/>
+          <path d="M20 104 Q22 68 52 64 Q82 68 84 104 Z" fill="#241708"/>
+          <rect x="58" y="30" width="30" height="9" rx="4" fill="#b08d57" transform="rotate(-18 58 30)"/>
+          <rect x="84" y="24" width="8" height="12" rx="3" fill="#8f6f3f" transform="rotate(-18 84 24)"/>
+        </svg></span>
+        <h4>Captain Crow</h4>
+        <p class="arch">Navigator</p>
+        <span class="flag" style="background:linear-gradient(180deg,#1f6f78 50%,#d8c39a 50%)" title="Flag: teal over parchment"></span>
+        <p class="gambit-line gmb-only"><b>Crow's Nest</b> — free action: count ship cells in a 3×3 area, then fire.</p>
+        <p class="cosmetic std-only">Cosmetic in Standard mode</p>
+      </button>
+
+      <button class="cap-card">
+        <span class="portrait" aria-hidden="true"><svg viewBox="0 0 104 104">
+          <path d="M32 60 Q28 30 52 24 Q76 30 72 60 L84 104 L20 104 Z" fill="#241708"/>
+          <path d="M40 48 Q52 40 64 48 L64 62 Q52 56 40 62 Z" fill="#0d0a06"/>
+          <rect x="70" y="70" width="12" height="16" rx="3" fill="#b08d57"/>
+          <rect x="73" y="73" width="6" height="10" rx="2" fill="#f0c96a"/>
+        </svg></span>
+        <h4>Captain Ghost</h4>
+        <p class="arch">Trickster</p>
+        <span class="flag" style="background:linear-gradient(90deg,#1c2430 60%,#1f6f78 60%)" title="Flag: slate with teal fly"></span>
+        <p class="gambit-line gmb-only"><b>Ghost Ship</b> — move one unsunk ship to a legal berth and repair one hit.</p>
+        <p class="cosmetic std-only">Cosmetic in Standard mode</p>
+      </button>
+    </div>
+    <div class="rowbtns">
+      <button class="btn small">Back</button>
+      <button class="btn">To Placement</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. PLACEMENT ============ -->
+<section class="screen s-place" data-screen="placement">
+  <div class="ocean"><span class="tag">3D ocean — three.js · RTS view of your waters</span></div>
+  <div class="inner">
+    <div class="place-side panel">
+      <p class="ptitle">Your Fleet</p>
+      <div class="shiplist">
+        <div class="shiprow placed"><span>Man-o'-War</span><span class="len">5</span></div>
+        <div class="shiprow placed"><span>Galleon</span><span class="len">4</span></div>
+        <div class="shiprow sel"><span>Frigate</span><span class="len">3</span></div>
+        <div class="shiprow"><span>Brigantine</span><span class="len">3</span></div>
+        <div class="shiprow"><span>Sloop</span><span class="len">2</span></div>
+      </div>
+      <div class="place-actions" style="padding:0 10px">
+        <button class="btn small">Rotate <span class="kbd">(R)</span></button>
+        <button class="btn small">Randomize</button>
+        <button class="btn" disabled>Place all 5 ships</button>
+      </div>
+      <p style="font:10px -apple-system,sans-serif;color:#5a4423;padding:0 10px">Ghost hull: <span style="color:var(--good)">green solid = valid</span>, <span style="color:var(--bad)">red striped = invalid</span></p>
+    </div>
+    <div class="place-chart panel">
+      <p class="ptitle">Chart — your waters</p>
+      <div class="chart-wrap"><div class="chart" id="chart-place" role="grid" aria-label="Placement chart"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7. BATTLE ============ -->
+<section class="screen s-battle" data-screen="battle">
+  <div class="topbar">
+    <span class="turn">Your turn — fire the cannons!</span>
+    <span class="spacer"></span>
+    <button class="tb-btn" aria-pressed="true">Camera: Tactical <kbd>T</kbd></button>
+    <button class="tb-btn" aria-pressed="true">Cinematic: On</button>
+    <button class="tb-btn" aria-label="Settings">⚙</button>
+  </div>
+  <div class="battle-body">
+    <div class="ocean"><svg viewBox="0 0 800 200" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M-60 60 Q40 30 140 60 T340 60 T540 60 T740 60 T940 60" fill="none" stroke="#2a8a94" stroke-width="3" opacity=".3"/>
+      <path d="M-60 130 Q40 100 140 130 T340 130 T540 130 T740 130 T940 130" fill="none" stroke="#2a8a94" stroke-width="4" opacity=".2"/>
+    </svg><span class="tag">3D ocean — three.js · your waters near (warm), enemy far (fog)</span></div>
+    <div class="hud">
+      <div class="dock">
+
+        <div class="chart-grp grp-left">
+          <div class="portrait-wrap">
+            <span class="voice">“Ye'll not find me Brigantine twice.”</span>
+            <div class="cap-frame">
+              <span class="portrait" aria-hidden="true"><svg viewBox="0 0 104 104"><path d="M32 60 Q28 30 52 24 Q76 30 72 60 L84 104 L20 104 Z" fill="#1c2430"/><path d="M40 48 Q52 40 64 48 L64 62 Q52 56 40 62 Z" fill="#0d0a06"/><rect x="70" y="70" width="12" height="16" rx="3" fill="#b08d57"/><rect x="73" y="73" width="6" height="10" rx="2" fill="#f0c96a"/></svg></span>
+              <span class="capname">Capt. Ghost</span>
+            </div>
+          </div>
+          <div class="panel">
+            <p class="ptitle">Enemy Waters</p>
+            <div class="panel-head">
+              <span class="mini-avatar" aria-hidden="true"><svg viewBox="0 0 104 104"><path d="M32 60 Q28 30 52 24 Q76 30 72 60 L84 104 L20 104 Z" fill="#1c2430"/><path d="M40 48 Q52 40 64 48 L64 62 Q52 56 40 62 Z" fill="#0d0a06"/><rect x="70" y="70" width="12" height="16" rx="3" fill="#b08d57"/><rect x="73" y="73" width="6" height="10" rx="2" fill="#f0c96a"/></svg></span>
+              <span><b>Capt. Ghost</b><i>“Ye'll not find me Brigantine twice.”</i></span>
+            </div>
+            <div class="chart-wrap"><div class="chart" id="chart-target" role="grid" aria-label="Target chart — enemy waters"></div></div>
+          </div>
+        </div>
+
+        <div class="hud-mid">
+          <div class="killcam gmb-only-keep"><div class="frame-img" aria-hidden="true"></div><div class="cap">Kill-cam (sink) — letterbox 2–3 s, any key skips</div></div>
+          <div class="panel logpanel">
+            <p class="ptitle">Ship's Log</p>
+            <ul>
+              <li><span class="turn-no">Turn 14</span> — B7 (you): hit, Frigate. Holed below the waterline.</li>
+              <li><span class="turn-no">Turn 14</span> — J2 (enemy): miss. Splash! Nothing but brine.</li>
+              <li><span class="turn-no">Turn 13</span> — E4 (you): miss. The gulls laugh at ye.</li>
+              <li><span class="turn-no">Turn 12</span> — (you) Powder Keg at E5: 5 shots, 1 hit.</li>
+              <li><span class="turn-no">Turn 11</span> — H9 (you): sunk their Sloop! She slips beneath the foam.</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <p class="ptitle">Manifest</p>
+            <div class="manifest">
+              <div class="mani-row"><span class="who">You</span>
+                <span class="chip">Man-o'-War 5</span><span class="chip">Galleon 4</span><span class="chip">Frigate 3</span><span class="chip">Brigantine 3</span><span class="chip sunk">Sloop 2</span>
+              </div>
+              <div class="mani-row"><span class="who">Enemy</span>
+                <span class="chip">Man-o'-War 5</span><span class="chip sunk">Galleon 4</span><span class="chip">Frigate 3</span><span class="chip">Brigantine 3</span><span class="chip sunk">Sloop 2</span>
+              </div>
+            </div>
+          </div>
+          <div class="panel gmb-only">
+            <div class="gambit-strip" style="padding:8px 10px">
+              <div class="gstate"><button class="gambit-btn" aria-label="Gambit: Ghost Ship — ready">Ghost<br>Ship</button><span>Ready</span></div>
+              <div class="gstate"><button class="gambit-btn unavail" aria-label="Gambit: Ghost Ship — unavailable, only in open water" disabled>Ghost<br>Ship</button><span>Unavailable</span><span class="reason">“Only in open water”</span></div>
+              <div class="gstate"><button class="gambit-btn spent" aria-label="Gambit: Ghost Ship — spent" disabled>Ghost<br>Ship</button><span>Spent</span></div>
+              <div class="ghost-note">Gambit button states<br>(all three shown for review)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-grp grp-right">
+          <div class="panel">
+            <p class="ptitle">Your Fleet</p>
+            <div class="panel-head">
+              <span class="mini-avatar" aria-hidden="true"><svg viewBox="0 0 104 104"><circle cx="52" cy="44" r="20" fill="#241708"/><path d="M20 104 Q22 70 52 66 Q82 70 84 104 Z" fill="#241708"/><path d="M64 22 Q76 14 78 4" fill="none" stroke="#6b4a2a" stroke-width="3"/><circle cx="79" cy="4" r="3.5" fill="#e0582a"/></svg></span>
+              <span><b>Capt. Powderkeg</b><i>(you)</i></span>
+            </div>
+            <div class="chart-wrap"><div class="chart" id="chart-ocean" role="grid" aria-label="Ocean chart — your fleet"></div></div>
+          </div>
+          <div class="cap-frame">
+            <span class="portrait" aria-hidden="true"><svg viewBox="0 0 104 104"><circle cx="52" cy="44" r="20" fill="#241708"/><path d="M20 104 Q22 70 52 66 Q82 70 84 104 Z" fill="#241708"/><path d="M64 22 Q76 14 78 4" fill="none" stroke="#6b4a2a" stroke-width="3"/><circle cx="79" cy="4" r="3.5" fill="#e0582a"/></svg></span>
+            <span class="capname">Capt. Powderkeg</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8. GAME OVER ============ -->
+<section class="screen s-over" data-screen="gameover">
+  <div class="ocean"><span class="tag">3D ocean — three.js · camera sweep to winning flagship</span></div>
+  <div class="inner">
+    <h2 class="over-banner">Victory! The Strait is yours.</h2>
+    <p class="over-sub">The wrecks below remember a finer crew.</p>
+    <div class="stats">
+      <div class="stat"><b>47</b><span>Shots</span></div>
+      <div class="stat"><b>19</b><span>Hits</span></div>
+      <div class="stat"><b>40%</b><span>Accuracy</span></div>
+      <div class="stat"><b>24</b><span>Turns</span></div>
+    </div>
+    <div class="panel reveal">
+      <p class="ptitle">Enemy fleet — revealed</p>
+      <div class="chart-wrap"><div class="chart" id="chart-reveal" role="grid" aria-label="Enemy fleet revealed"></div></div>
+    </div>
+    <div class="rowbtns">
+      <button class="btn">Another voyage</button>
+      <button class="btn small">Main menu</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9. SETTINGS ============ -->
+<section class="screen s-settings" data-screen="settings">
+  <div class="ocean"><span class="tag">3D ocean — three.js</span></div>
+  <div class="inner">
+    <h2 class="scr-title">Settings</h2>
+    <div class="panel settings-box">
+      <p class="ptitle">Ship's Articles</p>
+      <div class="set-row"><label for="q">Graphics quality</label>
+        <select id="q"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
+      <div class="set-row"><label for="mv">Music volume</label><input id="mv" type="range" min="0" max="100" value="70"></div>
+      <div class="set-row"><label for="sv">SFX volume</label><input id="sv" type="range" min="0" max="100" value="85"></div>
+      <div class="set-row"><label for="cm">Cinematic camera</label><input id="cm" type="checkbox" checked></div>
+      <div class="set-row"><label for="rm">Reduced motion</label><input id="rm" type="checkbox"></div>
+      <div class="controls-ref">
+        <kbd>WASD</kbd>/<kbd>←↑↓→</kbd> pan<br>
+        <kbd>Wheel</kbd> zoom<br>
+        <kbd>Q</kbd>/<kbd>E</kbd> rotate<br>
+        <kbd>T</kbd> Tactical/Cinematic preset<br>
+        <kbd>Space</kbd> recenter<br>
+        <kbd>R</kbd> rotate ship<br>
+        <kbd>Enter</kbd> fire
+      </div>
+    </div>
+    <button class="btn small">Back</button>
+  </div>
+</section>
+
+</div>
+</div>
+
+<script>
+(function(){
+  var frame=document.getElementById('frame');
+  var screens=frame.querySelectorAll('.screen');
+  var barBtns=document.querySelectorAll('[data-goto]');
+  function show(name){
+    screens.forEach(function(s){s.classList.toggle('active',s.dataset.screen===name)});
+    barBtns.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.goto===name?'true':'false')});
+  }
+  barBtns.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.goto)})});
+
+  var modeBtn=document.getElementById('modeToggle');
+  modeBtn.addEventListener('click',function(){
+    var std=frame.classList.toggle('standard');
+    modeBtn.textContent=std?'Mode: Standard':'Mode: Gambit';
+    modeBtn.setAttribute('aria-pressed',std?'false':'true');
+  });
+  var sizeBtn=document.getElementById('sizeToggle');
+  sizeBtn.addEventListener('click',function(){
+    var ph=frame.classList.toggle('phone');
+    sizeBtn.textContent=ph?'Phone (360)':'Desktop';
+    sizeBtn.setAttribute('aria-pressed',ph?'true':'false');
+  });
+
+  /* ---- chart builder: real <button> cells with aria-labels ---- */
+  var ROWS='ABCDEFGHIJ';
+  function coord(r,c){return ROWS[r]+(c+1)}
+  function buildChart(id,spec){
+    var el=document.getElementById(id);if(!el)return;
+    var marks=spec.marks||{},ships=spec.ships||[],own={},shipName={};
+    ships.forEach(function(sh){sh.cells.forEach(function(k){own[k]=1;shipName[k]=sh.name})});
+    el.appendChild(cell('ax','')); 
+    for(var c=0;c<10;c++){var h=document.createElement('span');h.className='ax';h.textContent=c+1;el.appendChild(h)}
+    for(var r=0;r<10;r++){
+      var lh=document.createElement('span');lh.className='ax';lh.textContent=ROWS[r];el.appendChild(lh);
+      for(var c2=0;c2<10;c2++){
+        var k=coord(r,c2),b=document.createElement('button'),m=marks[k],cls='cell',lbl=k+', empty';
+        if(own[k]){cls+=' own';lbl=k+', your '+shipName[k]}
+        if(m==='miss'){cls+=' miss';lbl=k+', miss'}
+        else if(m&&m.indexOf('hit:')===0){cls+=' hit';lbl=k+', hit, '+m.slice(4)}
+        else if(m&&m.indexOf('sunk:')===0){cls+=' hit sunk';lbl=k+', hit, '+m.slice(5)+', sunk'}
+        if(spec.ghostOk&&spec.ghostOk.indexOf(k)>=0){cls+=' ghost-ok';lbl+=', placement preview: valid'}
+        if(spec.ghostBad&&spec.ghostBad.indexOf(k)>=0){cls+=' ghost-bad';lbl+=', placement preview: invalid'}
+        if(spec.fleetOut&&spec.fleetOut.indexOf(k)>=0){cls+=' fleet-out';lbl+=', enemy '+shipName[k]+' (revealed)'}
+        if(spec.cursor===k){cls+=' kcursor';lbl+=' (keyboard cursor)'}
+        b.className=cls;b.setAttribute('aria-label',lbl);
+        el.appendChild(b);
+      }
+    }
+    function cell(cls,txt){var s=document.createElement('span');s.className=cls;s.textContent=txt;return s}
+  }
+
+  /* Target chart: misses rings, red-X hits, sunk Sloop at B3:B4 (hatched) */
+  buildChart('chart-target',{
+    marks:{
+      'B3':'sunk:Sloop','B4':'sunk:Sloop',
+      'D7':'hit:Frigate','E2':'hit:Galleon','F9':'hit:Frigate',
+      'A1':'miss','C5':'miss','E6':'miss','G3':'miss','I8':'miss','J5':'miss','C9':'miss','H2':'miss'
+    },
+    cursor:'D8'
+  });
+  /* Ocean chart: your ships, AI rings and X's on them */
+  buildChart('chart-ocean',{
+    ships:[
+      {name:"Man-o'-War",cells:['B2','B3','B4','B5','B6']},
+      {name:'Galleon',cells:['D8','E8','F8','G8']},
+      {name:'Frigate',cells:['F2','F3','F4']},
+      {name:'Brigantine',cells:['H6','H7','H8']},
+      {name:'Sloop',cells:['J9','J10']}
+    ],
+    marks:{'B4':'hit:Man-o\'-War','F8':'hit:Galleon','J9':'hit:Sloop','J10':'hit:Sloop',
+      'A5':'miss','C1':'miss','E5':'miss','G10':'miss','I3':'miss','D4':'miss'},
+    cursor:'C6'
+  });
+  /* Placement chart: 2 placed, valid ghost Frigate F6:H6, invalid ghost I4:J5 clipped */
+  buildChart('chart-place',{
+    ships:[
+      {name:"Man-o'-War",cells:['A2','A3','A4','A5','A6']},
+      {name:'Galleon',cells:['C8','D8','E8','F8']}
+    ],
+    ghostOk:['F6','G6','H6'],
+    ghostBad:['I2','I3','I4'],
+    cursor:'E5'
+  });
+  /* Game-over reveal: all five enemy ships outlined */
+  buildChart('chart-reveal',{
+    ships:[
+      {name:"Man-o'-War",cells:['A5','B5','C5','D5','E5']},
+      {name:'Galleon',cells:['G2','G3','G4','G5']},
+      {name:'Frigate',cells:['D7','E7','F7']},
+      {name:'Brigantine',cells:['I7','I8','I9']},
+      {name:'Sloop',cells:['B9','C9']}
+    ],
+    fleetOut:['A5','B5','C5','D5','E5','G2','G3','G4','G5','D7','E7','F7','I7','I8','I9','B9','C9'],
+    marks:{'C5':'hit:Man-o\'-War','D7':'hit:Frigate','B9':'hit:Sloop','C9':'hit:Sloop'}
+  });
+})();
+</script>
+</body>
+</html>
