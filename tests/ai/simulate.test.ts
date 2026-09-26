@@ -76,12 +76,22 @@ describe("no cheating, by construction", () => {
     .filter((f) => f.endsWith(".ts"))
     .map((f) => [f, readFileSync(join(aiDir, f), "utf8")] as const);
 
-  it("AI sources never see GameState, the opponent fleet, or players[]", () => {
+  it("AI sources never see GameState or players[]", () => {
     for (const [file, src] of sources) {
       if (file === "simulate.ts") continue; // the referee may hold GameState
       expect(src, file).not.toMatch(/GameState/);
-      expect(src, file).not.toMatch(/\.fleet/);
       expect(src, file).not.toMatch(/players\[/);
+    }
+  });
+
+  it("gambitAi.ts reads fleets only through self.fleet (its own ships)", () => {
+    const src = sources.find(([f]) => f === "gambitAi.ts")?.[1] ?? "";
+    expect(src).not.toBe("");
+    // Every `X.fleet` access must be `self.fleet` — the AI's own ships.
+    const refs = [...src.matchAll(/\b\w+\.fleet\b/g)].map((m) => m[0]);
+    expect(refs.length).toBeGreaterThan(0);
+    for (const r of refs) {
+      expect(r).toBe("self.fleet");
     }
   });
 

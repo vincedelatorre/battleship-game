@@ -115,6 +115,31 @@ describe("observe", () => {
     expect(k.actions).toBe(2);
   });
 
+  it("stores my scout result and clears it when the enemy relocates", () => {
+    let k = initialKnowledge(RULES, 0);
+    k = observe(k, [
+      {
+        type: "gambit",
+        by: 0,
+        captain: "captain-crowsnest",
+        gambit: "crowsnest",
+        seq: 0,
+      },
+      { type: "scout", by: 0, center: { row: 4, col: 4 }, count: 2, seq: 0 },
+    ]);
+    expect(k.scout).toEqual({ center: { row: 4, col: 4 }, count: 2 });
+    // The opponent's own scout is not mine.
+    const kOpp = observe(k, [
+      { type: "scout", by: 1, center: { row: 0, col: 0 }, count: 0, seq: 0 },
+    ]);
+    expect(kOpp.scout).toEqual({ center: { row: 4, col: 4 }, count: 2 });
+    // A relocation by the enemy invalidates the count.
+    const kMoved = observe(k, [
+      { type: "relocated", by: 1, shipId: "cruiser", seq: 0 },
+    ]);
+    expect(kMoved.scout).toBeUndefined();
+  });
+
   it("never mutates the previous knowledge", () => {
     const k0 = initialKnowledge(RULES, 0);
     const k1 = observe(k0, [shotEv(0, 0, 0, "miss")]);

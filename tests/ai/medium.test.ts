@@ -152,6 +152,50 @@ describe("mediumShot — stale hits (Ghost Ship)", () => {
   });
 });
 
+describe("mediumShot — scout-directed hunt", () => {
+  const scout = (center: Coord, count: number): GameEvent[] => [
+    {
+      type: "gambit",
+      by: 0,
+      captain: "captain-crowsnest",
+      gambit: "crowsnest",
+      seq: 0,
+    },
+    { type: "scout", by: 0, center, count, seq: 0 },
+  ];
+
+  it("hunts inside the scouted area while the count is unexplained", () => {
+    const k = know(0, scout({ row: 4, col: 4 }, 2));
+    for (let seed = 0; seed < 20; seed++) {
+      const c = mediumShot(k, mulberry32(seed));
+      expect(Math.abs(c.row - 4) <= 1 && Math.abs(c.col - 4) <= 1).toBe(true);
+    }
+  });
+
+  it("ignores the scout once its cells are accounted for", () => {
+    const k = know(
+      0,
+      scout({ row: 4, col: 4 }, 1),
+      [shot(4, 4, "sunk", "destroyer"), { type: "sunk", by: 0, shipId: "destroyer", seq: 0 }],
+    );
+    // count 1 explained by the sunk destroyer -> normal parity hunt
+    // (smallest remaining length is now 3).
+    const c = move(k);
+    expect((c.row + c.col) % 3).toBe(0);
+  });
+
+  it("clears the scout after a relocation", () => {
+    const k = know(
+      0,
+      scout({ row: 0, col: 0 }, 3),
+      [{ type: "relocated", by: 1, shipId: "cruiser", seq: 0 }],
+    );
+    expect(k.scout).toBeUndefined();
+    const c = move(k); // back to normal parity hunt
+    expect((c.row + c.col) % 2).toBe(0);
+  });
+});
+
 describe("mediumShot — hunt mode", () => {
   it("respects parity of the smallest remaining length", () => {
     // Full fleet: m = 2 -> checkerboard.

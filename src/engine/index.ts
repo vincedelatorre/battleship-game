@@ -17,6 +17,7 @@ export {
 export {
   blastCells,
   powderKegLegal,
+  powderKegLegalFromShots,
   scoutArea,
   useGambit,
   type GambitError,

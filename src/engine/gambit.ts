@@ -13,6 +13,7 @@ import type {
   PlayerState,
   Result,
   ShipState,
+  Shot,
 } from "./types";
 
 export type GambitParams =
@@ -77,11 +78,26 @@ export function powderKegLegal(
   player: PlayerIndex,
   center: Coord,
 ): Result<Coord[], "out_of_bounds" | "not_open_water"> {
-  if (!inBounds(center, state.rules)) {
+  return powderKegLegalFromShots(
+    state.players[player].shots,
+    center,
+    state.rules,
+  );
+}
+
+/**
+ * Same legality check as powderKegLegal, but driven by a raw shot list —
+ * used by the AI, which knows its own shots but never sees a GameState.
+ */
+export function powderKegLegalFromShots(
+  shots: readonly Shot[],
+  center: Coord,
+  rules: Rules = RULES,
+): Result<Coord[], "out_of_bounds" | "not_open_water"> {
+  if (!inBounds(center, rules)) {
     return { ok: false, error: "out_of_bounds" };
   }
-  const cells = blastCells(center, state.rules);
-  const shots = state.players[player].shots;
+  const cells = blastCells(center, rules);
   const fired = new Set(shots.map((s) => coordKey(s.coord)));
   if (cells.some((c) => fired.has(coordKey(c)))) {
     return { ok: false, error: "not_open_water" };
@@ -103,7 +119,7 @@ export function powderKegLegal(
       .map((s) => coordKey(s.coord)),
   );
   const touchesHit = cells.some((c) =>
-    orthogonalNeighbors(c, state.rules).some((n) => knownHits.has(coordKey(n))),
+    orthogonalNeighbors(c, rules).some((n) => knownHits.has(coordKey(n))),
   );
   if (touchesHit) {
     return { ok: false, error: "not_open_water" };

@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
+    "balance": "vitest run --config vitest.balance.config.ts",
     "lint": "eslint ."
   },
   "devDependencies": {

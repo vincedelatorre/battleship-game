@@ -1,4 +1,5 @@
 import { coordKey, inBounds, orthogonalNeighbors } from "../engine/coords";
+import { scoutArea } from "../engine/gambit";
 import { randInt, type Rng } from "../engine/rng";
 import { shipLength, type ShipId } from "../engine/rules";
 import type { Coord } from "../engine/types";
@@ -137,18 +138,48 @@ function pickNeighbour(
   return best[randInt(rng, best.length)]?.c ?? null;
 }
 
-function huntShot(k: Knowledge, rng: Rng): Coord {
+/**
+ * The pool mediumShot would pick a hunt shot from: a Crow's Nest scout
+ * with unexplained ship cells concentrates the hunt inside its area
+ * (ignoring parity); otherwise parity on the smallest remaining length
+ * with fitsAt, relaxed to any fit, then any untried cell.
+ */
+export function huntPool(k: Knowledge): Coord[] {
   const all = untried(k);
-  if (all.length === 0) {
-    // Unreachable in a live game.
-    throw new Error("mediumShot: no untried cells remain");
-  }
+  if (all.length === 0) return [];
   const lens = remainingLengths(k);
   const m = lens.length === 0 ? 1 : Math.min(...lens);
+  const scout = k.scout;
+  if (scout) {
+    const area = scoutArea(scout.center, k.rules);
+    const keys = new Set(area.map(coordKey));
+    const stale = new Set(k.staleHits);
+    const found = k.shots.filter(
+      (s) =>
+        (s.result === "hit" || s.result === "sunk") &&
+        !stale.has(coordKey(s.coord)) &&
+        keys.has(coordKey(s.coord)),
+    ).length;
+    if (scout.count - found > 0) {
+      const fired = new Set(k.shots.map((s) => coordKey(s.coord)));
+      const pool = area.filter(
+        (c) => !fired.has(coordKey(c)) && fitsAt(k, c, m),
+      );
+      if (pool.length > 0) return pool;
+    }
+  }
   let pool = all.filter((c) => (c.row + c.col) % m === 0 && fitsAt(k, c, m));
   if (pool.length === 0) pool = all.filter((c) => fitsAt(k, c, m));
   if (pool.length === 0) pool = all;
+  return pool;
+}
+
+function huntShot(k: Knowledge, rng: Rng): Coord {
+  const pool = huntPool(k);
   const pick = pool[randInt(rng, pool.length)];
-  if (!pick) throw new Error("mediumShot: no untried cells remain");
+  if (!pick) {
+    // Unreachable in a live game.
+    throw new Error("mediumShot: no untried cells remain");
+  }
   return pick;
 }
