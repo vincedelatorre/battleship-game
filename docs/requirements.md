@@ -123,7 +123,7 @@ Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the bro
 1. **Intro video** (placeholder in v0.1): full-screen `<video>`, skippable with any key or click; plays only once per session. Final video will be produced later with Higgsfield and/or Runway (see 1C.6).
 2. **Main menu** (RTS style): live 3D backdrop (flagship at anchor, rolling ocean, slow camera drift, dusk sky), game logo, and a vertical stack of beveled brass/wood buttons: **Set Sail**, **Settings** (graphics quality, music/SFX volume, reduced motion), **Credits**. Home-screen music plays here.
 3. **Choose mode & difficulty:** two large mode cards, **Standard** (classic Hasbro, §1) and **Gambit** (Captain's Gambit, §1A), plus difficulty Deckhand / Buccaneer. The last choice is remembered in localStorage.
-4. **Choose your captain** (**both modes**): 4 captain cards with an animated portrait, flag, bio and (in Gambit mode) the Gambit. In Standard mode the captain is cosmetic only (portrait, flag, voice lines) and grants no power.
+4. **Choose your captain** (**both modes**): 4 captain cards with an animated portrait, flag, bio and (in Gambit mode) the Gambit. In Standard mode the captain is cosmetic only (portrait, flag, voice lines) and grants no power. **Hero shot on selection:** the chosen card eases forward and scales up (~600 ms) with parallax between portrait layers and a slight blur and dim on the other cards (a rack-focus effect), and the captain speaks their select line. CSS transforms and filters only, with no 3D cost. Reduced motion swaps this for an instant highlight.
 5. **Placement:** the RTS camera looks down on your waters. Pick a ship, hover a cell to see a ghost hull (valid and invalid preview), R or a button to rotate, Randomize. The same grid is mirrored in a 2D chart panel that is fully usable by keyboard.
 6. **Battle:** one continuous ocean. Your fleet sits in the near waters, and the enemy waters on the far side are under **fog of war** (enemy ships are never rendered until hit or sunk, and their positions never reach the scene unless the engine reports them). Firing plays a cannon volley, a projectile arc, and then a splash or impact. Hits set fire and smoke, and sinks play a listing-and-sinking animation. The HUD shows both captain portraits (StarCraft-style frames), the move log, fleet status, the Gambit button (Gambit mode), and a 2D tactical chart for each grid (think RTS minimap) that also takes clicks and keyboard input.
 7. **Game over:** a cinematic camera sweep to the winning flagship, stats, the enemy fleet revealed, and Rematch ("Another voyage") / Main menu.
@@ -131,13 +131,23 @@ Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the bro
 
 ### 1C.2 Camera (RTS)
 - Perspective camera at about 50–60° pitch, looking over the battle like an RTS overview. Pan with WASD, the arrow keys (when the chart isn't focused), edge-scroll or a right-drag. Mouse wheel zooms between clamped limits. Q/E rotate in 45° steps. Space recenters.
-- Camera motion is eased (damped); short scripted moves play on events (a slight shake on hits taken, a brief focus on a sinking ship). Reduced motion turns off shake and scripted moves.
+- **Zero-input default:** the game must read correctly with no camera input at all (the panel may never touch the controls). The default framing shows both waters, and the director layer below carries every key moment. Free-cam is an extra, not a requirement.
+- **Presets:** T toggles between **Tactical** (near top-down, both grids fully in view) and **Cinematic** (low 35° angle over your fleet), with an on-screen toggle button too. Recenter returns to the current preset.
+- **Collision:** the camera never goes below a minimum height above the highest wave crest, and zoom-in is shortened by a raycast against simplified hull boxes, so it never clips through water or a ship.
+- Camera motion is eased (damped). Reduced motion turns off shake and all director moves below.
+- **Director layer:** the camera takes over briefly at key moments, then hands control back. Moves are queued in the order the engine reports events, and input for the next turn stays locked until the queue finishes. Any click or key skips the current move. Setting: "Cinematic camera: On / Off" (default On).
+  - **Shot follow (both sides):** when a shot resolves, a damped pan (~0.4 s) brings the impact point to screen centre and holds through the splash or impact, then eases back to the player's previous camera pose. This matters most on the AI's turn: its shots land in the player's waters, which may be off-screen. It is skipped if the impact is already inside the central 60% of the view.
+  - **Kill-cam on sink:** a 2–3 s cut to a low angle near the waterline, beside the sinking ship. The ship lists, goes under and leaves debris and a smoke column; the sink announcement plays; then the camera returns to the RTS overview. It plays for sinks on both sides. For an enemy ship, the model only appears because the engine has already revealed that sunk ship (1C.4), so no hidden information leaks. If a sink ends the game, the kill-cam flows into the Game Over sweep.
+  - **Hit taken:** a camera shake that is added on top of the eased camera motion, never replacing it. Its size falls off with distance from the camera to the impact (full at ≤ 20 units, zero at ≥ 80) and it decays over ~150 ms; a sink uses 1.5× that size. Then the shot follow.
+- The shot-follow and kill-cam beats extend the visible length of a turn but not the engine turn. The target is ≤ 3 s per turn including cinematics, so a 50-shot game doesn't drag.
 
 ### 1C.3 Rendering targets (three.js)
 - **Ocean:** animated Gerstner (sum of directional waves) displacement in a custom shader, with Fresnel reflection of the sky, subsurface tint, foam on wave crests and around hulls, and a specular sun glint. Ships ride the swell: hull pitch, roll and heave are sampled from the same wave function on the CPU, so boats and water never disagree. The later upgrade path is FFT ocean and screen-space reflections.
 - **Sky and lighting:** a physically based sky (three `Sky`), with the sun direction driving the directional light, PMREM environment lighting for PBR materials, ACES filmic tone mapping, and sRGB output. A soft shadow map covers the ships.
 - **Ships:** v0.1 builds all five styles procedurally from three.js geometry with PBR materials (wood, canvas, brass), because the procedural approach needs no asset pipeline and loads instantly. Sails and flags move with a vertex-shader wind flutter. There is a documented upgrade path to glTF models (original or licensed, Draco/KTX2 compressed) behind the same `ShipModel` interface.
 - **Effects:** cannon muzzle flash plus a smoke puff, a projectile arc, a splash column, fire and smoke on hits (GPU particles), and a sink animation. Post-processing adds bloom (subtle), vignette and FXAA/SMAA.
+- **Hit-stop:** on a hit or sink, the scene's animation clock freezes for ~60 ms (about 3–4 frames at 60 fps) at the moment of impact, then the explosion and smoke play. Music and the UI are not paused. It is disabled under reduced motion.
+- **Wreckage persistence:** a sunk ship doesn't disappear. Its mesh settles as a low-detail wreck (broken mast stub, floating debris, a thin smoke wisp) on its cells and stays for the rest of the match, so the ocean itself becomes a readable scoreboard. Enemy wrecks exist only because the engine revealed the sunk ship. Wrecks are cleared on Rematch.
 - **Quality tiers:** Low / Medium / High, auto-detected from the device and a first-second frame-time probe, and changeable in Settings. They trade off wave count, shadow resolution, pixel ratio, particles and post-processing. Target is 60 fps on a recent laptop at High and ≥ 30 fps on a mid-range phone at Low.
 - **Fallback:** if WebGL2 is unavailable, the game runs entirely on the 2D chart UI, so it stays fully playable.
 
@@ -151,6 +161,8 @@ Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the bro
 - **Two looping tracks:** a home-screen theme (a stately shanty feel) and a battle theme (more percussion, more tension), crossfaded on screen changes. v0.1 generates both **procedurally with the Web Audio API** (sequenced shanty-style melodies over drones and percussion). That avoids licensing risk and adds no download weight. They can later be replaced by commissioned or properly licensed tracks through the same `MusicPlayer` interface, with any licence recorded in Credits.
 - Browser autoplay rules: audio starts on the first user gesture (the intro skip or the first menu click). The volume setting is persisted in localStorage.
 - SFX: cannon, splash, impact, creak and a wave ambience bed, also synthesized in v0.1.
+- **Ducking:** while a captain voice line or Gambit announcement is showing, music drops 6 dB and SFX 3 dB, fading down over 100 ms and back up over 400 ms.
+- **Haptics:** on touch devices that support `navigator.vibrate`: hit taken = 40 ms, own ship sunk = a [60, 40, 120] ms pattern. Off under reduced motion and when SFX are muted.
 
 ### 1C.6 Video (Higgsfield / Runway): later, not v0.1
 - These tools produce pre-rendered video (the intro and cutscenes), not real-time game graphics; the live battle is always three.js.
@@ -159,6 +171,35 @@ Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the bro
 
 ### 1C.7 Out of scope for v0.1
 RPG systems; real-time ship movement or combat; multiplayer; FFT ocean; glTF ship assets; final intro and cutscene video; voice-acted lines (text voice lines only).
+
+### 1C.8 World and art direction
+- **Setting: The Drowned Strait.** A narrow, storm-prone channel littered with the wrecks of past fleets, where four rival captains fight for control. It appears as the main-menu subtitle, in the loading lines, in Credits, and in the Game Over copy ("The Strait is yours.").
+- **Loading lines:** while the lazy-loaded 3D code downloads (1C.4), a rotating line of lore or pirate code shows instead of a bare spinner, e.g. "The Code: never strike your colours before the last cannon speaks." Keep a pool of about 12 lines in the pirate copy file (1B) and show each for at least 2.5 s.
+- **HUD in the world's voice:** the fleet-status panel is framed as the captain's **Manifest**, and the move log as the **Ship's Log** ("Turn 14 — B7: hit, Frigate. Holed below the waterline."). Plain coordinates always come first, for accessibility (1B).
+- **Colour palette** (shared by the procedural ships, HUD chrome and lighting, so separate build sessions don't drift apart):
+
+| Role | Colour | Hex |
+|------|--------|-----|
+| Parchment (charts, panels) | aged tan | `#d8c39a` |
+| Brass (frames, trim, buttons) | aged brass | `#b08d57` |
+| Timber (hulls, frames) | dark oak | `#4a3322` |
+| Water (deep / surface) | deep teal | `#0b3440` / `#1f6f78` |
+| Accent (sunset, fire, hit) | blood orange | `#e0582a` |
+| Fog of war / night | storm slate | `#1c2430` |
+
+- **Lighting mood:** the default is late-afternoon dusk (warm key light from low sun, cool fill from the sky). Your own waters are lit a little warmer and brighter; enemy waters sit under cooler, denser fog, so "ours vs. unknown" reads at a glance.
+
+### 1C.9 Roadmap: parked for the debrief (not v0.1)
+Considered and deliberately deferred to protect the deadline. None of them touch the engine or rules; they are all presentation work.
+- **Weather that tracks tension:** calm dusk at the start, building cloud and whitecaps as ships sink, a squall for the final exchange (driven by the Gerstner and Sky parameters).
+- **Difficulty as lighting:** Deckhand = calm turquoise sea and high sun; Buccaneer = overcast sky and choppier water.
+- **Lighting extras:** rim light on your own ships against the fog; god rays on the main menu; dawn / dusk / storm sky presets rotated per session.
+- **Ambient life:** gulls over wrecks, a coastline silhouette, ships crossing the horizon on the menu.
+- **Adaptive music:** percussion stingers on hit/sink layered into the battle track.
+- **Rivalry banter:** AI captain lines chosen by score state (taunting when ahead, defiant when down to its last ship).
+- **Post-match highlight:** a camera-only replay of the winning shot on Game Over.
+- **Cosmetic meta:** unlockable flags and ship paint. This is the "live-service pirate battler without touching the rules engine" story.
+- **A standalone art-direction document** (1C.8 is the v0.1 version).
 
 ## 2. The Orchestrator
 
@@ -189,6 +230,7 @@ Role: Program Manager + Tech Lead. Owns scope, sequencing, the decision log, the
 3. **Gate 3 – Architecture Lock:** Stack, client vs server authority, hosting chosen.
 4. **Gate 4 – Design Lock:** Screens + interaction model wireframed.
 5. **Gate 5 – MVP Definition:** DoD signed. **Build starts only after this gate.**
+6. **Gate 5.5 – Vertical Slice** (mid-build, after the classic engine, Medium AI and 3D scene basics exist): one complete turn polished end to end in 3D: player fires → shot follow → hit-stop → hit fire and smoke → AI turn → sink → kill-cam → wreck → SFX, ducking and music. Breadth work (Gambit UI, all captains and portraits, remaining effects) starts only after this slice is signed off. This hedges against "everything is 80% done and nothing can be demoed."
 
 ## 3. Roles and Their Questions
 
@@ -350,6 +392,12 @@ The prompt says "play **online** against an AI". Both options satisfy that; the 
 | F31 | Combat effects: cannon, projectile, splash, fire/smoke, sinking (1C.3) | Must (splash, hit), Should (full set) |
 | F32 | Quality tiers + 2D chart fallback without WebGL2 (1C.3) | Must |
 | F33 | Intro video and cutscenes (Higgsfield/Runway) | Later (plumbing only in v0.1) |
+| F34 | Camera director: shot follow (both sides), kill-cam on sink, skippable, "Cinematic camera" setting (1C.2) | Must (shot follow), Should (kill-cam) |
+| F35 | Captain-select hero shot (1C.1) | Should |
+| F36 | Camera presets Tactical/Cinematic (T), camera collision, zero-input default framing (1C.2) | Must |
+| F37 | Game feel: hit-stop, distance-scaled additive shake, wreckage persistence (1C.2–1C.3) | Must |
+| F38 | Audio ducking under voice lines/announcements; mobile haptics (1C.5) | Should |
+| F39 | World: The Drowned Strait setting, loading lines, Manifest / Ship's Log HUD, palette (1C.8) | Must (setting, palette, log framing), Should (loading lines) |
 
 ## 6. Non-Functional Requirements (consolidated)
 
@@ -395,6 +443,8 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 - [ ] Each of the 4 Gambits tested in the engine (legal, illegal, once-only), and a full Gambit-mode game played with each captain.
 - [ ] Balance test (1A.6) run; every captain within 45–55% win rate; numbers in README.
 - [ ] Captain names, flags and portraits are original (no copyrighted characters or assets).
+- [ ] Vertical slice (Gate 5.5) signed off before breadth work.
+- [ ] **Human feel pass:** at least one full game played by someone other than the builder, **without being taught the camera controls**, on desktop and phone. Camera, lighting, audio and pacing (≤ 3 s per turn) are signed off, and their notes are recorded in the README. Automated tests can't catch "the pan feels sluggish."
 
 ## 8. Risk Register
 
@@ -412,6 +462,8 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 3D scene scope ("AAA/Unreal") swamps the deadline | High | High | Rules first: engine + AI + 2D chart UI playable before 3D polish; 3D scene renders state only; fidelity is iterative (v0.1 baseline, later glTF/FFT); quality tiers |
 | 3D performance on phones / no WebGL2 | High | Med | Auto quality tiers, frame-time probe, 2D chart fallback |
 | Scene leaks hidden info (enemy ships rendered or in memory) | High | Low | Scene only gets what the engine reveals; enemy ships spawned on hit/sink/game over only |
+| Interview panel never explores the camera controls and judges only the default view, so the 3D polish goes unseen | High | High | Zero-input default framing plus the camera director (1C.2) carry every key moment; the director is built before free-cam polish; Tactical/Cinematic presets on one key; the feel pass is done by someone who isn't shown the controls |
+| Visual drift across build sessions (ships, HUD, lighting don't match) | Med | Med | One palette and lighting mood in 1C.8; every visual step references it |
 | Music/asset licensing | Med | Low | v0.1 audio procedural; any future track or model licence recorded in Credits |
 | Can't explain AI-generated code | High | Med | Review every diff; keep stack simple |
 | Bug doc thin | Med | Med | Log bugs as they're found, not at the end |
@@ -441,3 +493,4 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 19 | Modes | "Standard" (classic) and "Gambit"; captain select in both, powers only in Gambit | Game Designer | 2026-09-26 |
 | 20 | Music | Home + battle themes, procedural Web Audio in v0.1; licensed/commissioned later | UX Designer | 2026-09-26 |
 | 21 | Video | Intro + cutscenes via Higgsfield/Runway later; skippable plumbing only in v0.1 | Orchestrator | 2026-09-26 |
+| 22 | Design review (§1C) | Folded in: camera director, presets, collision, hit-stop, shake curve, wreckage, setting "The Drowned Strait", loading lines, Manifest / Ship's Log, palette, ducking, haptics, Gate 5.5, feel pass in DoD, "panel never explores controls" risk. Parked: 1C.9 | Orchestrator | 2026-09-26 |
