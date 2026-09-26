@@ -2,11 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=docs/index.html">
-<link rel="canonical" href="docs/index.html">
-<title>Battleship — Pre-Build Planning</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pirate Battleship</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #06121f; }
+  #app, #scene { width: 100%; height: 100%; display: block; }
+  #hud {
+    position: fixed; top: 14px; left: 16px; z-index: 10;
+    color: #d8e4ee; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  #hud h1 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 700; letter-spacing: .02em; }
+  #hud a { color: #9cccec; }
+</style>
 </head>
 <body>
-<p>Redirecting to the <a href="docs/index.html">Battleship planning page</a>…</p>
+<div id="app"><canvas id="scene"></canvas></div>
+<div id="hud">
+  <h1>Pirate Battleship — v0.1 scaffold</h1>
+  <a href="/plan/">Pre-build planning docs</a>
+</div>
+<script type="module" src="/src/main.ts"></script>
 </body>
 </html>

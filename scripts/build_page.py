@@ -4,6 +4,7 @@
 Reads docs/requirements.md and docs/build-manual.md, converts them to HTML
 with a small line-based markdown parser, and injects them into the template
 below (single self-contained file: inline CSS + JS, no external requests).
+Also copies the result to public/plan/index.html so Vite serves it at /plan/.
 
 Regenerate:  python3 scripts/build_page.py
 """
@@ -17,6 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 OUT = DOCS / "index.html"
+# Same page served by Vite at /plan/ (public/ is copied to dist verbatim).
+PLAN_OUT = ROOT / "public" / "plan" / "index.html"
 
 # ---------------------------------------------------------------- inline ----
 
@@ -1096,8 +1099,10 @@ def main():
     page = page.replace("%%MAN_TOC%%", toc_html(man_heads))
     page = page.replace("%%GEN_DATE%%", date.today().isoformat())
     OUT.write_text(page, encoding="utf-8")
-    print("wrote %s (%d bytes, %d req headings, %d manual headings)"
-          % (OUT, len(page), len(req_heads), len(man_heads)))
+    PLAN_OUT.parent.mkdir(parents=True, exist_ok=True)
+    PLAN_OUT.write_text(page, encoding="utf-8")
+    print("wrote %s and %s (%d bytes, %d req headings, %d manual headings)"
+          % (OUT, PLAN_OUT, len(page), len(req_heads), len(man_heads)))
 
 
 if __name__ == "__main__":
