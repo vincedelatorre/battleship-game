@@ -93,17 +93,17 @@ Balance rationale (analytical estimate, to be confirmed by 1A.6): Powder Keg ≈
   - Ghost Ship: right after one of its ships takes its first hit and is not sunk, it relocates that damaged ship.
 - Medium AI must handle the player's Ghost Ship correctly: when a ship is announced as relocated, drop that ship's hits from its target list (they are history now) and treat the ship as unfound with its remaining length; misses stay valid.
 
-### 1A.6 Balance test (measured, not guessed)
-- A headless script plays Medium-AI vs Medium-AI games for all 16 captain pairings, ≥ 1,000 games each, with fixed seeds, alternating first player.
-- Reports each captain's win rate overall and when moving first vs second, plus average game length per pairing.
-- **Target:** every captain wins 45–55% against the field. If one falls outside, tune a single parameter (e.g. Powder Keg to 4 cells, Crow's Nest area size, Broadside to 2 shots) and rerun. Record final numbers in the README for the debrief.
-
 ### 1A.5 Captain identity, naming brief, portraits
 - **Naming (done by Devin during the build):** four original pirate names, pronounceable, distinct first letters, fitting each archetype. No real people, no existing fictional or trademarked characters (e.g. no Jack Sparrow, Davy Jones, Hook). Each captain also gets: a flag (colour + emblem), a one-line bio, and short voice lines for select, hit, miss, sink, Gambit, victory, defeat.
 - **Portraits:** each captain has an animated bust portrait in a framed panel, **in the spirit of** StarCraft / Warcraft unit portraits (the talking-head window). Original art only; never copy Blizzard assets or characters.
   - States: idle loop (breathing, blinking, a signature detail such as a parrot, eye-patch glint, or smoking pipe), talking (when a voice line appears), reacting to hits taken, celebrating hits made, Gambit wind-up, victory, defeat.
   - Tech: layered SVG + CSS keyframe animation (crisp at any size, small, no asset pipeline). Budget ≤ 40 KB per captain, lazy-loaded only in Gambit mode. `prefers-reduced-motion` shows static portraits.
   - Both portraits are visible in battle: player's captain by the Ocean Grid, AI's captain by the Target Grid.
+
+### 1A.6 Balance test (measured, not guessed)
+- A headless script plays Medium-AI vs Medium-AI games for all 16 captain pairings, ≥ 1,000 games each, with fixed seeds, alternating first player.
+- Reports each captain's win rate overall and when moving first vs second, plus average game length per pairing.
+- **Target:** every captain wins 45–55% against the field. If one falls outside, tune a single parameter (e.g. Powder Keg to 4 cells, Crow's Nest area size, Broadside to 2 shots) and rerun. Record final numbers in the README for the debrief.
 
 ## 1B. Pirate Theme (applies to every mode)
 
