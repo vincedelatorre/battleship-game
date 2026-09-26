@@ -23,6 +23,27 @@ export default tseslint.config(
     },
   },
   {
+    // No cheating, by construction: AI code may never import game state.
+    // simulate.ts is the referee and is exempt.
+    files: ["src/ai/**/*.ts"],
+    ignores: ["src/ai/simulate.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/engine/types", "**/engine", "**/engine/index"],
+              importNames: ["GameState", "PlayerState"],
+              message:
+                "AI code may not see game state; build Knowledge from GameEvents.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["tests/**/*.{ts,js}", "*.config.{ts,js}"],
     languageOptions: {
       globals: globals.node,

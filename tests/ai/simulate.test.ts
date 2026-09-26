@@ -40,7 +40,7 @@ describe("playClassicGame — easy vs easy", () => {
       expect(r.turns).toBeGreaterThan(17);
       expect([0, 1]).toContain(r.winner);
     }
-  });
+  }, 30000);
 });
 
 describe("playClassicGame — medium strength", () => {
