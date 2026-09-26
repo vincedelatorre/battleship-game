@@ -11,7 +11,8 @@ Build a Battleship game playable online against an AI; debug it and document bug
 - **Captain's Gambit mode (requirements §1A), in v0.1:** toggle `rules.gambit`, default Off; Off = pure classic, and the classic test suite must pass unchanged. On = each side picks 1 of 4 captains, each with one once-per-game Gambit that uses the whole turn: Broadside (3 shots), Powder Keg (plus-shaped blast, open water only), Crow's Nest (free action: 3x3 ship-cell count, then a normal shot), Ghost Ship (relocate a not-sunk ship, damage kept, onto un-fired cells; ship name announced). Balance is verified by the §1A.6 simulation (`npm run balance`, every captain 45–55%). First player alternates on Rematch. Gambit mode uses the same 10x10 board and fleet as Classic (12x12 was rejected). The AI gets a random captain and uses its Gambit by the rules in §1A.4. Captain names are chosen by Devin during the build per the naming brief in §1A.5 (original names only). Animated portraits in the spirit of StarCraft/Warcraft unit portraits, as original layered SVG + CSS, ≤ 40 KB each, lazy-loaded.
 - **Pirate theme everywhere (requirements §1B):** all screens and copy. Ship display names Man-o'-War 5, Galleon 4, Frigate 3, Brigantine 3, Sloop 2, mapped in the UI only; the engine keeps Hasbro IDs. Plain coordinates stay in ARIA labels and the move log.
 - **v0.1 scope:** all "Must" functional requirements (requirements §5, incl. F19–F24) + Easy and Medium AI. Hard (F16) and Adaptive Hard (F18) are later. Build order: classic engine → Gambit engine → AI → UI → theme → portraits; keep classic shippable at every step.
-- **Stack:** TypeScript (strict) + Vite, no UI framework; Vitest; ESLint; GitHub Actions CI.
+- **Stack:** TypeScript (strict) + Vite, no UI framework; **three.js** for the 3D scene (only runtime dep); Vitest; ESLint; GitHub Actions CI.
+- **Presentation (requirements §1C):** 3D RTS-style pirate naval battle: StarCraft/Warcraft feel (camera, portraits, menus), Unreal-level realism as the target, all original pirate assets, no RPG systems. Modes: Standard and Gambit; captain select in both. Procedural Web Audio music (home + battle). Intro video and cutscenes (Higgsfield/Runway) come later, and only their plumbing is built now. The 2D chart UI is always playable and is the WebGL2 fallback.
 - **Hosting:** Vercel, Git-connected (auto-deploy `main`, preview per branch). Game at `/`, planning site at `/plan/`.
 - **Architecture:** client-only for v0.1. Server-authoritative (Vercel Functions + encrypted state token or KV) is the documented production design, not built.
 - **AI:** deterministic algorithms, not ML. The AI gets only its own shot history (`hit`/`miss`, ship name on hits, sunk list), never the opponent board. Medium = checkerboard hunt + target, hits grouped by ship name.
@@ -19,7 +20,9 @@ Build a Battleship game playable online against an AI; debug it and document bug
 ## Layout
 - `src/engine/` — pure game rules, no DOM
 - `src/ai/` — pure AI functions, no DOM, no access to opponent board
-- `src/ui/` — rendering and input only; no rule logic
+- `src/ui/` — DOM screens, HUD, 2D charts, input; no rule logic
+- `src/scene/` — three.js scene; renders engine state/events only, never sees the hidden AI fleet
+- `src/audio/` — music and SFX
 - `tests/` — Vitest
 - `docs/` — requirements, build manual, planning site (`docs/index.html`, generated), `BUGS.md`
 - `scripts/build_page.py` — regenerates the planning site from the two .md docs: `python3 scripts/build_page.py`

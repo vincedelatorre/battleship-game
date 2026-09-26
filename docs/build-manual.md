@@ -80,7 +80,7 @@ Confirm the Definition of Done in the requirements doc. **Build begins now.**
 
 ### Step 4.1 — Project scaffold
 Prompt:
-> In this repo, scaffold a Vite + TypeScript project with Vitest and ESLint. Create folders src/engine, src/ai, src/ui, and tests. Add npm scripts: dev, build, test, lint. Add a GitHub Actions workflow that runs lint and test on every push and pull request. Replace the root index.html (currently a redirect to the planning site) with the Vite app entry, and make scripts/build_page.py also write the planning site to public/plan/index.html so it deploys at /plan/. Do not write any game logic yet.
+> In this repo, scaffold a Vite + TypeScript project with Vitest and ESLint, plus three.js as the only runtime dependency. Create folders src/engine, src/ai, src/ui, src/scene, src/audio, and tests. Add a minimal three.js smoke scene (RTS-angle camera over an animated ocean plane) to prove the 3D pipeline builds and deploys. Add npm scripts: dev, build, test, lint. Add a GitHub Actions workflow that runs lint and test on every push and pull request. Replace the root index.html (currently a redirect to the planning site) with the Vite app entry, and make scripts/build_page.py also write the planning site to public/plan/index.html so it deploys at /plan/. Do not write any game logic yet.
 
 Done when: `npm install && npm test && npm run build` succeed; CI is green on GitHub.
 
@@ -152,7 +152,27 @@ Only after MVP is done and deployed.
 ### Step 7.7 — Name the captains and animate their portraits
 > Name the four captains following the naming brief in requirements §1A.5: original pirate names, pronounceable, distinct first letters, matching each archetype (Gunner, Demolitions, Navigator, Trickster); no real people or existing fictional/trademarked characters. For each captain write a flag (colour + emblem), a one-line bio, and short voice lines (select, hit, miss, sink, Gambit, victory, defeat). Then create an original animated bust portrait for each in the spirit of StarCraft/Warcraft unit portraits, as layered inline SVG with CSS keyframes: idle loop (breathing, blinking, one signature detail), talking, hit taken, hit made, Gambit wind-up, victory, defeat. ≤ 40 KB per captain, lazy-loaded only in Gambit mode, static under prefers-reduced-motion. Update requirements Decision Log row 16 with the chosen names.
 
-Done when: full game playable with mouse, touch, and keyboard only, in both Classic and Gambit modes, with every captain.
+Steps 7.1–7.7 build the **2D chart UI** first: the always-available, accessible way to play (and the fallback when WebGL2 is missing). Steps 7.8–7.13 layer the 3D RTS experience from requirements §1C on top of it. The 3D scene renders engine state only.
+
+### 7.8 — Screen flow and RTS menus
+> Implement the §1C.1 screen flow in src/ui: intro video placeholder (skippable, once per session, silently skipped if public/video/intro.mp4 is missing, via a reusable playCutscene(id)), RTS-style main menu (Set Sail, Settings, Credits) with beveled brass/wood buttons, the Mode & Difficulty screen (Standard / Gambit cards, Deckhand / Buccaneer, remembered in localStorage), and Choose Your Captain in both modes (Gambit text shown only in Gambit mode). Settings: graphics quality, music and SFX volume, reduced motion.
+
+### 7.9 — Ocean, sky, lighting
+> In src/scene, build the ocean per §1C.3: a Gerstner-wave vertex shader (4–8 directional waves by quality tier), Fresnel sky reflection, subsurface tint, crest foam, and sun glint; three's Sky driving the sun and a PMREM environment; ACES tone mapping; shadows. Export a CPU `sampleWave(x, z, t)` that uses the same wave parameters as the shader, and unit-test it (deterministic, and it matches the parameters table). Add the RTS camera from §1C.2 (pan, zoom clamps, Q/E rotate, recenter, damping). Lazy-load the scene after the menu's first paint.
+
+### 7.10 — Pirate ships
+> Build the five procedural ship styles from §1B (Man-o'-War, Galleon, Frigate, Brigantine, Sloop) behind a `ShipModel` interface, with PBR wood/canvas/brass materials, sail and flag flutter in a vertex shader, and captain flags. Ships ride the swell using sampleWave (pitch, roll, heave). Place them on the grid plane in the player's waters from engine state; enemy ships spawn only when the engine reveals them (hit, sink, game over).
+
+### 7.11 — Combat effects and 3D input
+> Raycast cell picking on the grid plane goes through the same UI command path as the 2D chart. Effects: muzzle flash + smoke, projectile arc, splash column (miss), fire and smoke (hit), list-and-sink (sunk), camera shake off under reduced motion. Fog of war over enemy waters. Game Over camera sweep.
+
+### 7.12 — Music and SFX
+> In src/audio, build a `MusicPlayer` with two procedural Web Audio tracks (§1C.5): a home theme and a battle theme, crossfaded on screen changes, started on the first user gesture, and controlled by the persisted volume/mute settings. Add synthesized SFX (cannon, splash, impact, creak, wave bed). The interface should allow swapping in licensed audio files later.
+
+### 7.13 — Quality tiers and fallback
+> Add Low / Medium / High tiers (auto-detected plus a frame-time probe, overridable in Settings) that scale wave count, shadow size, pixel ratio, particles and post-processing (bloom, vignette, FXAA). Without WebGL2, skip the scene and use the 2D chart UI. Verify ≥ 30 fps at Low in a throttled mobile emulation and 60 fps at High on desktop.
+
+Done when: full game playable with mouse, touch, and keyboard only, in both Standard and Gambit modes, with every captain, in 3D and in the 2D fallback; music plays on the menu and in battle.
 
 ---
 

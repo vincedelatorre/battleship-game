@@ -54,10 +54,10 @@ Digital-only decisions the physical rules don't cover (must be answered at Gate 
 
 Decided 2026-09-26. With the toggle **Off** (default), the game is exactly Section 1: classic Hasbro. With it **On**, each side picks one of four pirate captains, and each captain carries one special power (a **Gambit**) usable **once per game**. Everything in Section 1 still applies except where a Gambit explicitly overrides it for that one turn.
 
-### 1A.1 Toggle
-- Start screen: switch "Captain's Gambit: Off / On", default **Off**. Persist the last choice in localStorage.
+### 1A.1 Mode select
+- Mode screen (1C.1): **Standard** (= Gambit Off, default) or **Gambit** (= Gambit On). Persist the last choice in localStorage.
 - Engine config: `rules.gambit: boolean` (same single-rules-config pattern as 6.1). With `gambit: false`, no Gambit code path can run; classic tests must pass unchanged.
-- Gambit On adds a **Choose Your Captain** screen between Start and Placement.
+- **Choose Your Captain** appears in both modes (1C.1); only in Gambit mode does the captain carry a Gambit.
 - Board and fleet are identical to Classic in both modes: 10x10, same 5 ships. A larger Gambit board (12x12) was considered and rejected: games ~40% longer, tighter mobile layout, and a second balance surface, for little gain since the Gambits already differentiate the mode.
 
 ### 1A.2 Gambit rules (apply to every captain)
@@ -97,7 +97,7 @@ Balance rationale (analytical estimate, to be confirmed by 1A.6): Powder Keg ≈
 - **Naming (done by Devin during the build):** four original pirate names, pronounceable, distinct first letters, fitting each archetype. No real people, no existing fictional or trademarked characters (e.g. no Jack Sparrow, Davy Jones, Hook). Each captain also gets: a flag (colour + emblem), a one-line bio, and short voice lines for select, hit, miss, sink, Gambit, victory, defeat.
 - **Portraits:** each captain has an animated bust portrait in a framed panel, **in the spirit of** StarCraft / Warcraft unit portraits (the talking-head window). Original art only; never copy Blizzard assets or characters.
   - States: idle loop (breathing, blinking, a signature detail such as a parrot, eye-patch glint, or smoking pipe), talking (when a voice line appears), reacting to hits taken, celebrating hits made, Gambit wind-up, victory, defeat.
-  - Tech: layered SVG + CSS keyframe animation (crisp at any size, small, no asset pipeline). Budget ≤ 40 KB per captain, lazy-loaded only in Gambit mode. `prefers-reduced-motion` shows static portraits.
+  - Tech (v0.1): layered SVG + CSS keyframe animation (crisp at any size, small, no asset pipeline). Budget ≤ 40 KB per captain, lazy-loaded. `prefers-reduced-motion` shows static portraits. Later iteration: realistic rendered or video portraits (e.g. short Higgsfield/Runway loops) behind the same portrait-state interface.
   - Both portraits are visible in battle: player's captain by the Ocean Grid, AI's captain by the Target Grid.
 
 ### 1A.6 Balance test (measured, not guessed)
@@ -110,9 +110,55 @@ Balance rationale (analytical estimate, to be confirmed by 1A.6): Powder Keg ≈
 Decided 2026-09-26: **everything is pirate themed**, in Classic and Gambit modes alike. Rules, board size and ship lengths are unchanged; only presentation changes.
 - **Ship display names:** Man-o'-War (5), Galleon (4), Frigate (3), Brigantine (3), Sloop (2). The engine keeps the Hasbro IDs; the UI maps them. The rule "name the ship on every hit" uses the pirate name ("Hit. Frigate.").
 - **Copy:** pirate voice everywhere, readable first, flavour second. Examples: Start → "Set Sail"; Fire → "Fire the cannons!"; miss → "Splash! Nothing but brine."; hit → "Direct hit! Their Frigate takes a ball!"; sink → "Ye sank me Galleon!"; win → "Victory! The seas be yours."; loss → "Down to Davy Jones' locker..."; Rematch → "Another voyage".
-- **Visuals:** aged parchment sea chart for grids, wood and rope frames, brass accents, compass rose; hit = red X with smoke, miss = white splash ring (still distinguishable without colour). Difficulty names: Easy = "Deckhand", Medium = "Buccaneer".
-- **Audio (Could):** cannon, splash, creaking wood; muted by default with a toggle.
+- **Visuals:** the battle is a real-time 3D ocean scene (see 1C). HUD panels use wood, rope and brass frames with a compass rose; the 2D tactical grids read as parchment sea charts. Hit = fire and smoke on the ship plus a red X on the chart; miss = white splash column plus a white ring on the chart (still distinguishable without colour). Difficulty names: Easy = "Deckhand", Medium = "Buccaneer".
+- **Ship styles (one distinct silhouette per length):** Man-o'-War (5): three masts, two gun decks, high stern castle. Galleon (4): three masts, square sails, ornate stern. Frigate (3): sleek three-master with a single gun deck. Brigantine (3): two masts, square-rigged fore and fore-and-aft main, so it can't be confused with the Frigate. Sloop (2): single mast, gaff sail, low hull. Every ship flies its captain's flag.
+- **Audio:** pirate-themed music on the home screen and a separate battle track during the match (see 1C.5), plus cannon, splash, creaking wood and wave SFX. Separate music and SFX volume sliders, with a mute toggle.
 - **Accessibility and clarity win over theme:** ARIA labels and the move log use plain coordinates alongside flavour text (e.g. "B7: hit, Frigate").
+
+## 1C. Presentation & Experience: 3D RTS pirate battle (v0.1 baseline, iterated later)
+
+Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the browser. The camera, HUD and menus take their feel from **StarCraft / Warcraft** (overhead RTS camera, framed talking-head portraits, beveled command panels, a cinematic main menu). The ocean, ships and effects aim at **Unreal-level realism** as the long-term target. The game stays turn-based Battleship with no RPG systems (no levels, loot, inventory or stats progression). The theme is all pirate, with original assets only and nothing taken from Blizzard. v0.1 establishes the pipeline and a strong baseline; fidelity grows over later iterations.
+
+### 1C.1 Screen flow
+1. **Intro video** (placeholder in v0.1): full-screen `<video>`, skippable with any key or click; plays only once per session. Final video will be produced later with Higgsfield and/or Runway (see 1C.6).
+2. **Main menu** (RTS style): live 3D backdrop (flagship at anchor, rolling ocean, slow camera drift, dusk sky), game logo, and a vertical stack of beveled brass/wood buttons: **Set Sail**, **Settings** (graphics quality, music/SFX volume, reduced motion), **Credits**. Home-screen music plays here.
+3. **Choose mode & difficulty:** two large mode cards, **Standard** (classic Hasbro, §1) and **Gambit** (Captain's Gambit, §1A), plus difficulty Deckhand / Buccaneer. The last choice is remembered in localStorage.
+4. **Choose your captain** (**both modes**): 4 captain cards with an animated portrait, flag, bio and (in Gambit mode) the Gambit. In Standard mode the captain is cosmetic only (portrait, flag, voice lines) and grants no power.
+5. **Placement:** the RTS camera looks down on your waters. Pick a ship, hover a cell to see a ghost hull (valid and invalid preview), R or a button to rotate, Randomize. The same grid is mirrored in a 2D chart panel that is fully usable by keyboard.
+6. **Battle:** one continuous ocean. Your fleet sits in the near waters, and the enemy waters on the far side are under **fog of war** (enemy ships are never rendered until hit or sunk, and their positions never reach the scene unless the engine reports them). Firing plays a cannon volley, a projectile arc, and then a splash or impact. Hits set fire and smoke, and sinks play a listing-and-sinking animation. The HUD shows both captain portraits (StarCraft-style frames), the move log, fleet status, the Gambit button (Gambit mode), and a 2D tactical chart for each grid (think RTS minimap) that also takes clicks and keyboard input.
+7. **Game over:** a cinematic camera sweep to the winning flagship, stats, the enemy fleet revealed, and Rematch ("Another voyage") / Main menu.
+8. **Cutscenes** (later): short video inserts at key moments (first blood, last ship sunk). The hooks exist in v0.1; there's no content yet.
+
+### 1C.2 Camera (RTS)
+- Perspective camera at about 50–60° pitch, looking over the battle like an RTS overview. Pan with WASD, the arrow keys (when the chart isn't focused), edge-scroll or a right-drag. Mouse wheel zooms between clamped limits. Q/E rotate in 45° steps. Space recenters.
+- Camera motion is eased (damped); short scripted moves play on events (a slight shake on hits taken, a brief focus on a sinking ship). Reduced motion turns off shake and scripted moves.
+
+### 1C.3 Rendering targets (three.js)
+- **Ocean:** animated Gerstner (sum of directional waves) displacement in a custom shader, with Fresnel reflection of the sky, subsurface tint, foam on wave crests and around hulls, and a specular sun glint. Ships ride the swell: hull pitch, roll and heave are sampled from the same wave function on the CPU, so boats and water never disagree. The later upgrade path is FFT ocean and screen-space reflections.
+- **Sky and lighting:** a physically based sky (three `Sky`), with the sun direction driving the directional light, PMREM environment lighting for PBR materials, ACES filmic tone mapping, and sRGB output. A soft shadow map covers the ships.
+- **Ships:** v0.1 builds all five styles procedurally from three.js geometry with PBR materials (wood, canvas, brass), because the procedural approach needs no asset pipeline and loads instantly. Sails and flags move with a vertex-shader wind flutter. There is a documented upgrade path to glTF models (original or licensed, Draco/KTX2 compressed) behind the same `ShipModel` interface.
+- **Effects:** cannon muzzle flash plus a smoke puff, a projectile arc, a splash column, fire and smoke on hits (GPU particles), and a sink animation. Post-processing adds bloom (subtle), vignette and FXAA/SMAA.
+- **Quality tiers:** Low / Medium / High, auto-detected from the device and a first-second frame-time probe, and changeable in Settings. They trade off wave count, shadow resolution, pixel ratio, particles and post-processing. Target is 60 fps on a recent laptop at High and ≥ 30 fps on a mid-range phone at Low.
+- **Fallback:** if WebGL2 is unavailable, the game runs entirely on the 2D chart UI, so it stays fully playable.
+
+### 1C.4 Architecture boundaries
+- `src/engine` and `src/ai` are unchanged: pure logic, no DOM, no three.js.
+- `src/scene` (three.js) **renders state only**. It receives engine events (`shot`, `hit`, `sunk`, `gambit`, `gameOver`) and animates them. It never decides a rule, and it never receives the AI fleet before game over.
+- `src/ui` holds the DOM screens, HUD and 2D charts. `src/audio` holds music and SFX. Input from the 3D scene (a cell picked by raycasting onto the grid plane) and input from the 2D chart go through the same UI command path into the engine.
+- Scene code is lazy-loaded after the menu's first paint, so the menu becomes interactive fast.
+
+### 1C.5 Music and sound
+- **Two looping tracks:** a home-screen theme (a stately shanty feel) and a battle theme (more percussion, more tension), crossfaded on screen changes. v0.1 generates both **procedurally with the Web Audio API** (sequenced shanty-style melodies over drones and percussion). That avoids licensing risk and adds no download weight. They can later be replaced by commissioned or properly licensed tracks through the same `MusicPlayer` interface, with any licence recorded in Credits.
+- Browser autoplay rules: audio starts on the first user gesture (the intro skip or the first menu click). The volume setting is persisted in localStorage.
+- SFX: cannon, splash, impact, creak and a wave ambience bed, also synthesized in v0.1.
+
+### 1C.6 Video (Higgsfield / Runway): later, not v0.1
+- These tools produce pre-rendered video (the intro and cutscenes), not real-time game graphics; the live battle is always three.js.
+- v0.1 ships only the plumbing: a `playCutscene(id)` that plays `public/video/<id>.mp4` if present, is skippable, and is skipped silently if missing.
+- The art direction for the future video must match the in-game ships, flags and captains so the cutscenes and gameplay feel like one world.
+
+### 1C.7 Out of scope for v0.1
+RPG systems; real-time ship movement or combat; multiplayer; FFT ocean; glTF ship assets; final intro and cutscene video; voice-acted lines (text voice lines only).
 
 ## 2. The Orchestrator
 
@@ -183,7 +229,7 @@ Non-functional
 ### Role 3: UX/UI Designer (look and feel)
 
 Functional
-- Screens: Start (difficulty + Captain's Gambit toggle) → Choose Your Captain (Gambit mode only) → Placement → Battle → Game Over (winner, stats, rematch).
+- Screens (1C.1): Intro video → Main Menu → Mode & Difficulty (Standard / Gambit) → Choose Your Captain → Placement → Battle → Game Over (winner, stats, rematch).
 - Placement interaction: click ship, click cell, "R" key / button to rotate, ghost preview showing valid (green) vs invalid (red + pattern) positions.
 - Battle layout: both grids visible (desktop side by side; mobile stacked, Target Grid on top).
 - Feedback: hit / miss / sunk visuals, turn indicator, message log ("AI fires at C-4: Miss").
@@ -192,8 +238,8 @@ Functional
 Non-functional
 - Accessibility: markers distinguishable without color (X for hit, dot for miss); keyboard play (arrow keys + Enter); ARIA labels on cells ("B7, hit"); WCAG AA contrast.
 - Responsive from 360 px phone width to desktop.
-- Visual style: pirate theme throughout (Section 1B); animated captain portraits in Gambit mode (1A.5); no heavy asset downloads (SVG + CSS, no raster sprite sheets).
-- 60 fps animations; respects `prefers-reduced-motion`.
+- Visual style: pirate theme throughout (1B), a 3D RTS-style ocean battle (1C), and animated captain portraits (1A.5).
+- 60 fps target (quality tiers, 1C.3); respects `prefers-reduced-motion`; 2D chart fallback without WebGL2.
 
 ### Role 4: Backend / Systems Engineer (engine, authority, scale)
 
@@ -218,13 +264,13 @@ Non-functional (right-sized scale math)
 ### Role 5: Frontend / Client Engineer
 
 Functional
-- Framework: vanilla JS/TS, React, or a canvas engine? (Default: lean. See 4.1.)
+- Framework: vanilla TS for the DOM UI; **three.js** for the 3D scene (1C).
 - Render grids from state; never hold game truth in the DOM.
 - Disable input while waiting for AI / server response.
 - Handle refresh mid-game: resume or restart? (Default MVP: restart; stretch: resume from localStorage/server.)
 
 Non-functional
-- Time to playable < 2 s on 4G; bundle < 200 KB.
+- Menu interactive < 2 s on 4G (menu shell ≤ 60 KB gz); 3D scene chunk (three.js + scene code) ≤ 250 KB gz, lazy-loaded.
 - Browsers: latest Chrome, Safari (incl. iOS), Firefox, Edge.
 - No console errors or warnings in production.
 
@@ -262,7 +308,7 @@ The prompt says "play **online** against an AI". Both options satisfy that; the 
 
 ### 4.2 Stack (decided 2026-09-26)
 - Language: **TypeScript** (strict).
-- Framework: **none** (vanilla TS + ES modules), built with **Vite**.
+- Framework: **none** for UI (vanilla TS + ES modules), built with **Vite**. **three.js** (runtime dependency, approved 2026-09-26) for the 3D scene, using its bundled `examples/jsm` addons (Sky, post-processing); no other engine.
 - Test runner: **Vitest**; lint with **ESLint**; CI on **GitHub Actions**.
 - Hosting: **Vercel** (Git-connected, auto-deploy on push to `main`, preview URL per branch). Chosen over GitHub Pages for zero-config Vite deploys, preview URLs, and a same-project path to server authority via Vercel Functions. Next.js rejected as unnecessary for a single-page game.
 - Local tooling: Node.js LTS, GitHub CLI (`gh`), a code editor, Devin.
@@ -295,14 +341,22 @@ The prompt says "play **online** against an AI". Both options satisfy that; the 
 | F22 | Gambits: Broadside, Powder Keg (open water only), Crow's Nest, Ghost Ship, enforced by the engine (1A.2–1A.3) | Must |
 | F23 | AI picks a captain and uses its Gambit by rule (1A.4) | Must |
 | F24 | Animated captain portraits: idle loop + reaction states (1A.5) | Must (idle), Should (all reaction states) |
-| F25 | Captain voice lines and pirate sound effects | Could |
+| F25 | Captain voice lines (text) and pirate sound effects | Should |
+| F26 | 3D ocean battle scene: Gerstner waves, sky, PBR lighting, ships riding the swell (1C.3) | Must |
+| F27 | Five distinct procedural pirate ship styles, one per length (1B, 1C.3) | Must |
+| F28 | RTS camera: pan, zoom, rotate, recenter (1C.2) | Must |
+| F29 | Screen flow: intro placeholder, RTS main menu, mode & difficulty, captain select in both modes (1C.1) | Must |
+| F30 | Home and battle music, procedural Web Audio, with volume/mute (1C.5) | Must |
+| F31 | Combat effects: cannon, projectile, splash, fire/smoke, sinking (1C.3) | Must (splash, hit), Should (full set) |
+| F32 | Quality tiers + 2D chart fallback without WebGL2 (1C.3) | Must |
+| F33 | Intro video and cutscenes (Higgsfield/Runway) | Later (plumbing only in v0.1) |
 
 ## 6. Non-Functional Requirements (consolidated)
 
 | ID | Category | Target |
 |----|----------|--------|
 | N1 | Availability | Public HTTPS URL up throughout review; no login |
-| N2 | Performance | Playable < 2 s; each action < 100 ms locally; AI move ≤ 1 s incl. delay; portraits lazy-loaded (≤ 40 KB each), 60 fps animation |
+| N2 | Performance | Menu interactive < 2 s; each action < 100 ms locally; AI move ≤ 1 s incl. delay (animations may extend the visible turn); portraits ≤ 40 KB each; 60 fps at High on a recent laptop, ≥ 30 fps at Low on a mid-range phone; scene chunk ≤ 250 KB gz |
 | N3 | Correctness | Engine unit-test coverage ≥ 90%; all Section 3 Role 6 cases pass |
 | N4 | Consistency | Single source of truth for state; UI derived from state; no double shots |
 | N5 | Security / fairness | AI never uses hidden info; server mode never leaks AI fleet |
@@ -355,6 +409,10 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | Gambits break classic rules or each other | High | Med | `rules.gambit` flag; classic suite must pass with Gambit Off; engine tests per Gambit incl. edge cases (edge-clipped blast, Ghost Ship onto fired cells, Broadside winning mid-volley) |
 | Portrait art looks like copied IP | Med | Low | Original SVG art "in the spirit of" RTS portraits; naming brief bans existing characters |
 | Theme hurts readability/accessibility | Med | Med | Plain coordinates in ARIA labels and move log; non-colour markers kept |
+| 3D scene scope ("AAA/Unreal") swamps the deadline | High | High | Rules first: engine + AI + 2D chart UI playable before 3D polish; 3D scene renders state only; fidelity is iterative (v0.1 baseline, later glTF/FFT); quality tiers |
+| 3D performance on phones / no WebGL2 | High | Med | Auto quality tiers, frame-time probe, 2D chart fallback |
+| Scene leaks hidden info (enemy ships rendered or in memory) | High | Low | Scene only gets what the engine reveals; enemy ships spawned on hit/sink/game over only |
+| Music/asset licensing | Med | Low | v0.1 audio procedural; any future track or model licence recorded in Credits |
 | Can't explain AI-generated code | High | Med | Review every diff; keep stack simple |
 | Bug doc thin | Med | Med | Log bugs as they're found, not at the end |
 
@@ -379,3 +437,7 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 15 | Theme | Pirate theme everywhere; pirate ship display names (1B) | UX Designer | 2026-09-26 |
 | 16 | Captain names | Chosen by Devin during the build per naming brief (1A.5) | Game Designer | |
 | 17 | Gambit board size | 10x10, same as Classic (12x12 rejected, see 1A.1) | Game Designer | 2026-09-26 |
+| 18 | Presentation | 3D RTS-style pirate ocean battle in three.js; StarCraft/Warcraft feel, Unreal-level realism as the target; no RPG systems (1C) | Orchestrator | 2026-09-26 |
+| 19 | Modes | "Standard" (classic) and "Gambit"; captain select in both, powers only in Gambit | Game Designer | 2026-09-26 |
+| 20 | Music | Home + battle themes, procedural Web Audio in v0.1; licensed/commissioned later | UX Designer | 2026-09-26 |
+| 21 | Video | Intro + cutscenes via Higgsfield/Runway later; skippable plumbing only in v0.1 | Orchestrator | 2026-09-26 |
