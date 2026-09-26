@@ -284,8 +284,9 @@ export function useGambit(
     return { ok: false, error: "fired_cell" };
   }
   let s = beginGambit(state, gs, player, seq);
+  // Relocating patches up the ship: it keeps all damage minus one hit.
   const movedFleet: ShipState[] = me.fleet.map((sh) =>
-    sh === ship ? { ...to, hits: sh.hits } : sh,
+    sh === ship ? { ...to, hits: Math.max(0, sh.hits - 1) } : sh,
   );
   const nextMe: PlayerState = { fleet: movedFleet, shots: me.shots };
   s = {

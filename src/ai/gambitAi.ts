@@ -4,6 +4,7 @@ import { powderKegLegalFromShots, scoutArea } from "../engine/gambit";
 import { isSunk } from "../engine/game";
 import { shipCells } from "../engine/placement";
 import { randInt, type Rng } from "../engine/rng";
+import { shipLength } from "../engine/rules";
 import type { GambitParams } from "../engine/gambit";
 import type { Coord, Placement, ShipState, Shot } from "../engine/types";
 import { activeHits, untried } from "./common";
@@ -112,7 +113,10 @@ export function decideGambit(
  * Move the most damaged unsunk ship (ties: fleet order) to a random
  * legal berth: in bounds, not overlapping another own ship, covering no
  * cell the opponent has fired at, and not the ship's current position.
- * Falls through to the next damaged ship, then null.
+ * A ship qualifies once it has taken min(2, length - 1) hits — a
+ * destroyer moves at 1 hit, everything else at 2 — so the Gambit isn't
+ * spent on a scratch. Falls through to the next qualifying ship, then
+ * null.
  */
 function decideGhostShip(
   k: Knowledge,
@@ -121,7 +125,11 @@ function decideGhostShip(
 ): GambitParams | null {
   const incoming = new Set(self.incoming.map((s) => coordKey(s.coord)));
   const damaged = self.fleet
-    .filter((sh) => sh.hits >= 1 && !isSunk(sh, k.rules))
+    .filter(
+      (sh) =>
+        sh.hits >= Math.min(2, shipLength(sh.id, k.rules) - 1) &&
+        !isSunk(sh, k.rules),
+    )
     .sort((a, b) => b.hits - a.hits); // stable: ties keep fleet order
   for (const ship of damaged) {
     const ownCells = new Set(

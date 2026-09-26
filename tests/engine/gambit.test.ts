@@ -479,15 +479,18 @@ describe("powderkeg", () => {
       ok: false,
       error: "not_open_water",
     });
-    // A sinks the cruiser at its new position (1 carried hit + 2 more).
+    // A sinks the cruiser at its new position: the move repaired its one
+    // carried hit, so all three new cells must be hit.
     g = mustFire(g, 0, { row: 5, col: 0 }).state;
     g = mustFire(g, 1, { row: 6, col: 6 }).state; // B misses
-    const sink = mustFire(g, 0, { row: 5, col: 1 });
+    g = mustFire(g, 0, { row: 5, col: 1 }).state;
+    g = mustFire(g, 1, { row: 6, col: 7 }).state; // B misses
+    const sink = mustFire(g, 0, { row: 5, col: 2 });
     expect(sink.events[0]).toMatchObject({ result: "sunk", shipId: "cruiser" });
     g = sink.state;
     // The same centre is legal now: every known hit belongs to a sunk ship.
     expect(powderKegLegal(g, 0, center).ok).toBe(true);
-    g = mustFire(g, 1, { row: 6, col: 7 }).state; // B misses, back to A
+    g = mustFire(g, 1, { row: 6, col: 8 }).state; // B misses, back to A
     const blast = useGambit(g, 0, { kind: "powderkeg", center });
     if (!blast.ok) throw new Error(`powderkeg failed: ${blast.error}`);
     // Every blast cell is a miss — including (1,4), the cruiser's old berth.
@@ -603,28 +606,38 @@ describe("ghostship", () => {
     return g;
   }
 
-  it("moves a damaged ship, keeps its hits, announces the name only", () => {
-    const g = ghostGame();
+  it("moves a damaged ship, repairs one hit, announces the name only", () => {
+    let g = ghostGame(); // cruiser hit once at (0,4)
+    g = mustFire(g, 1, { row: 6, col: 6 }).state; // B misses
+    g = mustFire(g, 0, { row: 1, col: 4 }).state; // second hit on the cruiser
     const r = useGambit(g, 1, {
       kind: "ghostship",
       to: { id: "cruiser", row: 5, col: 0, orientation: "H" },
     });
     if (!r.ok) throw new Error(`ghostship failed: ${r.error}`);
     expect(r.value.events).toEqual([
-      { type: "gambit", by: 1, captain: GHOSTSHIP, gambit: "ghostship", seq: 2 },
-      { type: "relocated", by: 1, shipId: "cruiser", seq: 2 },
+      { type: "gambit", by: 1, captain: GHOSTSHIP, gambit: "ghostship", seq: 4 },
+      { type: "relocated", by: 1, shipId: "cruiser", seq: 4 },
     ]);
     const s = r.value.state;
     const cruiser = s.players[1].fleet.find((x) => x.id === "cruiser");
+    // Two hits carried minus one repaired: hits is 1 at the new berth.
     expect(cruiser).toMatchObject({ row: 5, col: 0, orientation: "H", hits: 1 });
     expect(s.turn).toBe(0);
     // Opponent's shot history is untouched.
     expect(s.players[0].shots).toEqual([
       { coord: { row: 0, col: 4 }, result: "hit", shipId: "cruiser" },
+      { coord: { row: 1, col: 4 }, result: "hit", shipId: "cruiser" },
     ]);
+    // And it sinks after exactly 2 more hits at its new cells.
+    let g2 = mustFire(s, 0, { row: 5, col: 0 }).state; // hits: 2
+    g2 = mustFire(g2, 1, { row: 6, col: 7 }).state;
+    const last = mustFire(g2, 0, { row: 5, col: 1 }); // hits: 3 -> sunk
+    expect(last.events.map((e) => e.type)).toEqual(["shot", "sunk"]);
+    expect(last.events[0]).toMatchObject({ result: "sunk", shipId: "cruiser" });
   });
 
-  it("sinks the moved ship only after the rest of its new cells are hit", () => {
+  it("sinks the moved ship only after all of its new cells are hit", () => {
     let g = ghostGame();
     const r = useGambit(g, 1, {
       kind: "ghostship",
@@ -632,14 +645,19 @@ describe("ghostship", () => {
     });
     if (!r.ok) throw new Error("failed");
     g = r.value.state;
+    // One hit was repaired: the cruiser carries hits 0 into the new berth.
+    const cruiser = g.players[1].fleet.find((x) => x.id === "cruiser");
+    expect(cruiser?.hits).toBe(0);
     // Old position is now water.
     const atOld = mustFire(g, 0, { row: 1, col: 4 });
     expect(atOld.events[0]).toMatchObject({ result: "miss" });
     g = mustFire(atOld.state, 1, { row: 6, col: 6 }).state;
-    // Two more hits at the new cells sink the 3-length cruiser (1 carried hit).
-    g = mustFire(g, 0, { row: 5, col: 0 }).state; // hits: 2
+    // All three new cells must be hit to sink the 3-length cruiser.
+    g = mustFire(g, 0, { row: 5, col: 0 }).state; // hits: 1
     g = mustFire(g, 1, { row: 6, col: 7 }).state;
-    const last = mustFire(g, 0, { row: 5, col: 1 }); // hits: 3 -> sunk
+    g = mustFire(g, 0, { row: 5, col: 1 }).state; // hits: 2
+    g = mustFire(g, 1, { row: 6, col: 8 }).state;
+    const last = mustFire(g, 0, { row: 5, col: 2 }); // hits: 3 -> sunk
     expect(last.events.map((e) => e.type)).toEqual(["shot", "sunk"]);
     expect(last.events[0]).toMatchObject({ result: "sunk", shipId: "cruiser" });
   });

@@ -78,7 +78,7 @@ Captain names are **placeholders**; final names are chosen during the build (see
 | `captain-broadside` | Gunner | **Broadside** (triple shot) | Fire 3 shots at 3 different untried cells, anywhere, resolved in the order chosen; each result announced | All 3 cells must be untried. Stops early if the game is won |
 | `captain-powderkeg` | Demolitions | **Powder Keg** (small blast radius) | Plus-shaped blast: target cell + 4 orthogonal neighbours (clipped at the board edge); every in-bounds cell is fired at | **Open water only:** every in-bounds blast cell must be untried, and no blast cell may touch (orthogonally) a known hit on a ship not yet sunk. So it cannot be used to finish a ship already found |
 | `captain-crowsnest` | Navigator | **Crow's Nest** (scout) | **Free action:** choose a 3x3 area and learn how many ship cells are in it (a number only: no positions, no names), then take your normal shot. No damage | Area clipped at edges; counts cells already hit too |
-| `captain-ghostship` | Trickster | **Ghost Ship** (escape) | Move one of your own ships that is **not sunk** (damaged is allowed) to a new legal position. It keeps its damage (e.g. a Frigate hit once still needs 2 more hits). Announced with the ship's name ("The Frigate slipped away!"), but not its new position. Earlier hits stay on the opponent's Target Grid as history | New position must be legal (Section 1) and may not cover any cell the opponent has already fired at. So the opponent's misses stay true |
+| `captain-ghostship` | Trickster | **Ghost Ship** (escape) | Move one of your own ships that is **not sunk** (damaged is allowed) to a new legal position, and **repair one hit** (e.g. a Frigate hit twice needs 2 more hits after moving; a Frigate hit once is fully repaired). The repair was added after the balance test (1A.6). Announced with the ship's name ("The Frigate slipped away!"), but not its new position. Earlier hits stay on the opponent's Target Grid as history | New position must be legal (Section 1) and may not cover any cell the opponent has already fired at. So the opponent's misses stay true |
 
 Powder Keg stays a plus (5 cells), not 3x3 (9 cells), to keep it balanced against Broadside's 3.
 
@@ -90,7 +90,7 @@ Balance rationale (analytical estimate, to be confirmed by 1A.6): Powder Keg ≈
   - Broadside: in hunt mode (no damaged ship pending) after turn 10, on the 3 best hunt cells.
   - Powder Keg: in hunt mode, on the legal open-water cell whose blast covers the most untried cells.
   - Crow's Nest (free action): in hunt mode on its first turn after turn 5, on the 3x3 with the most untried cells; the count then weights its hunting, and it still fires that turn.
-  - Ghost Ship: right after one of its ships takes its first hit and is not sunk, it relocates that damaged ship.
+  - Ghost Ship: as soon as one of its ships has at least 2 hits and is not sunk (a Sloop qualifies at 1 hit, since 2 would sink it), it relocates that ship (the most damaged one first) to a random legal position. Moving earlier erased too little of the opponent's progress; see 1A.6.
 - Medium AI must handle the player's Ghost Ship correctly: when a ship is announced as relocated, drop that ship's hits from its target list (they are history now) and treat the ship as unfound with its remaining length; misses stay valid.
 
 ### 1A.5 Captain identity, naming brief, portraits
@@ -104,6 +104,15 @@ Balance rationale (analytical estimate, to be confirmed by 1A.6): Powder Keg ≈
 - A headless script plays Medium-AI vs Medium-AI games for all 16 captain pairings, ≥ 1,000 games each, with fixed seeds, alternating first player.
 - Reports each captain's win rate overall and when moving first vs second, plus average game length per pairing.
 - **Target:** every captain wins 45–55% against the field. If one falls outside, tune a single parameter (e.g. Powder Keg to 4 cells, Crow's Nest area size, Broadside to 2 shots) and rerun. Record final numbers in the README for the debrief.
+- **Result (2026-09-26, `npm run balance`, 16,000 games; full tables in `docs/balance-results.md`):**
+  - First run: Broadside 52.2%, Powder Keg 54.6%, Crow's Nest 48.7%, **Ghost Ship 44.5% (out of band)**.
+  - Four fixes were measured on identical seeds:
+    - AI waits for 2 hits: Ghost 45.7%.
+    - AI waits until one hit from sinking: 44.5% (no gain).
+    - Ghost Ship repairs 1 hit: 46.6%.
+    - Both combined: **47.9%**.
+  - Chosen: the combined fix, which is a rule change (repair 1 hit) plus an AI timing change (2 hits). Final: Broadside 51.4%, Powder Keg 53.4%, Crow's Nest 47.3%, Ghost Ship 47.9% (49.6% moving first, 46.1% second). All four are in band, and the spread narrows from 10.1 to 6.1 points.
+  - Baseline for reference: in classic Medium vs Medium the first player wins 51.9%, and a game averages 88 total shots.
 
 ## 1B. Pirate Theme (applies to every mode)
 
@@ -494,3 +503,7 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 20 | Music | Home + battle themes, procedural Web Audio in v0.1; licensed/commissioned later | UX Designer | 2026-09-26 |
 | 21 | Video | Intro + cutscenes via Higgsfield/Runway later; skippable plumbing only in v0.1 | Orchestrator | 2026-09-26 |
 | 22 | Design review (§1C) | Folded in: camera director, presets, collision, hit-stop, shake curve, wreckage, setting "The Drowned Strait", loading lines, Manifest / Ship's Log, palette, ducking, haptics, Gate 5.5, feel pass in DoD, "panel never explores controls" risk. Parked: 1C.9 | Orchestrator | 2026-09-26 |
+| 23 | Powder Keg vs a Ghost-Shipped ship | Old hits on a relocated ship still block Powder Keg until that ship is sunk (conservative; tested) | Game Designer | 2026-09-26 |
+| 24 | Hardest AI in v0.1 | Two levels as planned (Deckhand, Buccaneer); Hard stays post-deploy | Orchestrator | 2026-09-26 |
+| 25 | AI captain in Standard mode | Random captain, different from the player's, cosmetic only (portrait, flag, banter) | Game Designer | 2026-09-26 |
+| 26 | Ghost Ship balance fix | Ghost Ship repairs 1 hit; the AI uses it at 2 hits (Sloop: 1). Ghost 44.5% → 47.9% (1A.6) | Game Designer | 2026-09-26 |

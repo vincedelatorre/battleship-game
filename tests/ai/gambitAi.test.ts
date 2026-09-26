@@ -215,10 +215,10 @@ describe("decideGambit — ghostship", () => {
     ).toBeNull();
   });
 
-  it("moves the most damaged unsunk ship to a legal position", () => {
+  it("moves the most damaged qualifying ship to a legal position", () => {
     const sv = selfView(
-      { destroyer: 1, cruiser: 1 },
-      [{ row: 8, col: 0 }, { row: 4, col: 0 }],
+      { destroyer: 1, cruiser: 2 },
+      [{ row: 8, col: 0 }, { row: 4, col: 0 }, { row: 4, col: 1 }],
     );
     const params = decideGambit(
       initialKnowledge(RULES, 0),
@@ -229,7 +229,7 @@ describe("decideGambit — ghostship", () => {
     );
     expect(params?.kind).toBe("ghostship");
     if (params?.kind === "ghostship") {
-      // ties (both 1 hit) break by fleet order: cruiser before destroyer
+      // cruiser (2 hits) outranks destroyer (1 hit)
       expect(params.to.id).toBe("cruiser");
       const to = params.to;
       expect(
@@ -242,12 +242,45 @@ describe("decideGambit — ghostship", () => {
           .filter((s) => s.id !== to.id)
           .flatMap((s) => shipCells(s, RULES).map(coordKey)),
       );
-      const fired = new Set(["8,0", "4,0"]);
+      const fired = new Set(["8,0", "4,0", "4,1"]);
       for (const c of cells) {
         expect(ownOthers.has(coordKey(c))).toBe(false);
         expect(fired.has(coordKey(c))).toBe(false);
       }
     }
+  });
+
+  it("waits for 2 hits on a cruiser, but a destroyer qualifies at 1", () => {
+    // Cruiser at 1 hit: not damaged enough to spend the Gambit on.
+    expect(
+      decideGambit(
+        initialKnowledge(RULES, 0),
+        selfView({ cruiser: 1 }, [{ row: 4, col: 0 }]),
+        "captain-ghostship",
+        "medium",
+        mulberry32(1),
+      ),
+    ).toBeNull();
+    // Cruiser at 2 hits: qualifies.
+    const params = decideGambit(
+      initialKnowledge(RULES, 0),
+      selfView({ cruiser: 2 }, [{ row: 4, col: 0 }, { row: 4, col: 1 }]),
+      "captain-ghostship",
+      "medium",
+      mulberry32(1),
+    );
+    expect(params?.kind).toBe("ghostship");
+    if (params?.kind === "ghostship") expect(params.to.id).toBe("cruiser");
+    // A destroyer (length 2) can't survive 2 hits, so 1 hit qualifies.
+    const d = decideGambit(
+      initialKnowledge(RULES, 0),
+      selfView({ destroyer: 1 }, [{ row: 8, col: 0 }]),
+      "captain-ghostship",
+      "medium",
+      mulberry32(1),
+    );
+    expect(d?.kind).toBe("ghostship");
+    if (d?.kind === "ghostship") expect(d.to.id).toBe("destroyer");
   });
 
   it("is null when no legal relocation exists", () => {
