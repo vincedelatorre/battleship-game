@@ -82,25 +82,44 @@ export function placementTransform(
 /**
  * Per-axis world units per sprite pixel. The full sprite length —
  * bowsprit tip to stern, w px — spans spanCells × CELL × 0.96 along the
- * The whole visible sprite (hull, sails, yards, pennants — the full
- * w×h bounds) must sit inside its cells with a margin, never touching a
- * grid line: length ≤ cells×4 − SHIP_LEN_MARGIN, beam ≤ SHIP_BEAM.
- * Only the beam axis is squeezed; kx drops below the length fit only if
- * the full length would exceed the limit.
+ * The sprite is centred on its HULL (hullCx/hullCy — the dense hull
+ * band, not the bbox, since pennants pile up on one side). The scale
+ * then guarantees the farthest visible pixel on each side stays inside
+ * the margins: length half-extent ≤ (cells×4 − margin)/2, beam
+ * half-extent ≤ SHIP_BEAM/2. Only the beam axis is squeezed.
  */
 export const SHIP_LEN_MARGIN = 0.5; // world units off the cell span
 export const SHIP_BEAM = CELL * 0.82; // ~0.9u clear water each side
+/** ship deck height above the water plane, world units */
+export const SHIP_FLOAT_H = 1.15;
 /** animation clamps, exported so the footprint test can assert extremes */
 export const SHIP_SWAY_MAX = 0.016; // rad of yaw drift
 export const SHIP_PITCH_MAX = 0.07;
 export const SHIP_ROLL_MAX = 0.1;
 
+/** The 11 line positions per axis for a grid — same constants the
+ * static grid-overlay shader uses (CELL spacing, GRID_SIZE extent). */
+export function gridLineWorldPositions(grid: GridId): { x: number[]; z: number[] } {
+  const b = gridBounds(grid);
+  const x: number[] = [];
+  const z: number[] = [];
+  for (let i = 0; i <= GRID_CELLS; i++) {
+    x.push(b.minX + i * CELL);
+    z.push(b.minZ + i * CELL);
+  }
+  return { x, z };
+}
+
 export function spriteUnitsPerPixel(
   spanCells: number,
   spriteW: number,
   spriteH: number,
+  hullCx = 0.5,
+  hullCy = 0.5,
 ): { kx: number; ky: number } {
-  const kx = (spanCells * CELL - SHIP_LEN_MARGIN) / spriteW;
-  const ky = Math.min(kx, SHIP_BEAM / spriteH);
+  const halfLenPx = Math.max(hullCx, 1 - hullCx) * spriteW;
+  const halfBeamPx = Math.max(hullCy, 1 - hullCy) * spriteH;
+  const kx = (spanCells * CELL - SHIP_LEN_MARGIN) / (2 * halfLenPx);
+  const ky = Math.min(kx, SHIP_BEAM / (2 * halfBeamPx));
   return { kx, ky };
 }

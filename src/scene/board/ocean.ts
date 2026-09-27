@@ -15,6 +15,7 @@ import type { Swell } from "../storm/waves";
 
 /** Calm battle sea — heavy storm swell would hide the board. */
 export const BOARD_WAVES: readonly Swell[] = [
+  { dx: -0.3, dz: 0.95, amp: 0.5, freq: 0.045, speed: 0.5, q: 0.35 },
   { dx: 0.72, dz: 0.69, amp: 0.55, freq: 0.09, speed: 0.8, q: 0.4 },
   { dx: -0.5, dz: 0.87, amp: 0.42, freq: 0.14, speed: 1.1, q: 0.35 },
   { dx: 0.94, dz: -0.34, amp: 0.3, freq: 0.22, speed: 1.5, q: 0.3 },
@@ -29,16 +30,6 @@ float vnoise(vec2 p){
   vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x),
              mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-`;
-
-const GRID_HELPERS = /* glsl */ `
-// smooth rect coverage: 1 inside, soft falloff over pad units
-float inGridSoft(vec2 p, vec2 mn, float pad) {
-  vec2 c = mn + vec2(20.0);
-  vec2 d = abs(p - c) - vec2(20.0);
-  float outside = length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0);
-  return 1.0 - smoothstep(-pad, pad, outside);
 }
 `;
 
@@ -64,27 +55,21 @@ function gerstnerGLSL(waves: readonly Swell[]): string {
 
 const VERT = /* glsl */ `
 uniform float uTime;
-uniform vec2 uGridA;
-uniform vec2 uGridB;
 varying vec3 vNormal;
 varying vec3 vWorld;
 varying float vCrest;
 varying float vFold;
-${GRID_HELPERS}
 void main() {
   vec3 p = (modelMatrix * vec4(position, 1.0)).xyz;
   // swell flattens in the far field so the horizon stays a clean line
   float fade = 1.0 - smoothstep(150.0, 420.0, length(p.xz - cameraPosition.xz));
-  // …and calms inside the grids so the drawn lines stay straight
-  float inBoard = max(inGridSoft(p.xz, uGridA, 3.0), inGridSoft(p.xz, uGridB, 3.0));
-  float calm = 1.0 - 0.55 * inBoard;
   vec3 dp = vec3(0.0);
   vec3 n = vec3(0.0, 1.0, 0.0);
   float crest = 0.0;
   float fold = 0.0;
   ${"" /* GLSL generated below */}
   __GERSTNER__
-  float k = fade * calm;
+  float k = fade;
   p += dp * k;
   n = mix(vec3(0.0, 1.0, 0.0), n, k);
   vNormal = normalize(n);
@@ -162,7 +147,6 @@ uniform float uTime;
 uniform vec3 uSunDir;
 uniform vec3 uSkyColor;      // horizon sky tint for Fresnel
 uniform vec3 uHazeColor;     // far-field haze = fog
-uniform vec2 uGridA;         // player grid: (minX, minZ), size 40
 uniform vec2 uGridB;         // enemy grid (minX, minZ) — extra mist
 uniform vec4 uHover;         // hovered enemy cell (cx, cz, on, playerValid?)
 uniform vec4 uHullPos[${MAX_HULLS}];  // x, z, dirx, dirz
@@ -174,18 +158,7 @@ varying vec3 vWorld;
 varying float vCrest;
 varying float vFold;
 ${NOISE}
-${GRID_HELPERS}
 
-// distance to nearest grid line inside a rect (0 at line, in cell units)
-float gridLine(vec2 p, vec2 mn, float cell) {
-  vec2 q = p - mn;
-  vec2 inCell = abs(fract(q / cell) - 0.5) * cell;
-  return min(inCell.x, inCell.y);
-}
-float gridEdge(vec2 p, vec2 mn, float sz) {
-  vec2 q = abs(p - mn - vec2(sz * 0.5));
-  return sz * 0.5 - max(q.x, q.y);
-}
 float inRect(vec2 p, vec2 mn, float sz) {
   return step(mn.x, p.x) * step(mn.y, p.y) * step(p.x, mn.x + sz) * step(p.y, mn.y + sz);
 }
@@ -195,9 +168,10 @@ void main() {
   vec3 V = normalize(cameraPosition - vWorld);
 
   // fragment micro-facets: two scrolling taps of the filtered normal map
-  vec3 t1 = texture2D(uNormalTex, vWorld.xz * 0.10 + vec2(uTime * 0.012, uTime * 0.007)).rgb * 2.0 - 1.0;
-  vec3 t2 = texture2D(uNormalTex, vWorld.xz * 0.29 - vec2(uTime * 0.016, -uTime * 0.010)).rgb * 2.0 - 1.0;
-  N = normalize(N + vec3(t1.x + t2.x, 0.0, t1.y + t2.y) * 0.09);
+  vec3 t1 = texture2D(uNormalTex, vWorld.xz * 0.09 + vec2(uTime * 0.012, uTime * 0.007)).rgb * 2.0 - 1.0;
+  vec3 t2 = texture2D(uNormalTex, vWorld.xz * 0.26 - vec2(uTime * 0.016, -uTime * 0.010)).rgb * 2.0 - 1.0;
+  vec3 t3 = texture2D(uNormalTex, vWorld.xz * 0.55 + vec2(-uTime * 0.011, uTime * 0.014)).rgb * 2.0 - 1.0;
+  N = normalize(N + vec3(t1.x + t2.x + t3.x * 0.7, 0.0, t1.y + t2.y + t3.y * 0.7) * 0.16);
 
   vec3 deep = vec3(0.0036, 0.020, 0.067);    // #0b2748 in linear
   vec3 surf = vec3(0.011, 0.082, 0.236);     // #1a4f86 in linear
@@ -214,9 +188,9 @@ void main() {
   float lit = clamp(dot(N, L), 0.0, 1.0);
   col *= 0.78 + 0.42 * lit + 0.09 * vCrest;
   // large-scale patches, ~±8% luminance, drifting slowly
-  col *= 0.92 + 0.16 * depthN;
+  col *= 0.96 + 0.08 * depthN;
   col *= 1.0 - 0.10 * smoothstep(0.55, 0.9, cloud);   // cloud shadow drift
-  col = mix(col, surf * 1.15, smoothstep(0.4, 1.4, vCrest) * 0.3);
+  col = mix(col, surf * 1.08, smoothstep(0.4, 1.4, vCrest) * 0.25);
 
   // sun: smooth glossy lobe + sparse smooth sparkles
   vec3 H = normalize(L + V);
@@ -224,7 +198,7 @@ void main() {
   // twinkle comes free from the perturbed normals — no hash gate
   float glit = pow(ndh, 750.0) * 1.5;
   col += vec3(1.0, 0.86, 0.6) * glit;
-  col += vec3(0.9, 0.75, 0.5) * pow(ndh, 60.0) * 0.10; // soft glossy path
+  col += vec3(0.9, 0.75, 0.5) * pow(ndh, 60.0) * 0.055; // soft glossy path
 
   // subsurface teal on thin crests facing the light
   float subs = pow(max(dot(V, L), 0.0), 4.0);
@@ -235,7 +209,8 @@ void main() {
   float foam = smoothstep(0.16, 0.30, vFold) * (0.3 + 0.5 * fn);
   col = mix(col, vec3(0.30, 0.34, 0.33), clamp(foam, 0.0, 1.0) * 0.3);
 
-  // hull foam: a thin soft ring hugging each hull — no wakes, anchored
+  // waterline: darker water under each hull + a thin bright rim that
+  // pulses gently — sells the hull sitting in the water
   for (int i = 0; i < ${MAX_HULLS}; i++) {
     if (i >= uHullCount) break;
     vec4 hp = uHullPos[i];
@@ -245,8 +220,15 @@ void main() {
     float par = dot(d, fw) / max(uHullSize[i].x, 0.001);
     float per = dot(d, sd) / max(uHullSize[i].y, 0.001);
     float e = par * par + per * per;                       // 1 = hull outline
-    float ring = smoothstep(1.22, 1.06, e) * smoothstep(0.88, 1.0, e);
-    col = mix(col, vec3(0.38, 0.42, 0.41), ring * 0.4 * (0.6 + 0.4 * fn));
+    float under = smoothstep(1.05, 0.6, e);                // inside the hull
+    col *= 1.0 - 0.26 * under;
+    // dark contact band hugging the hull edge (~0.15u)
+    float band = smoothstep(1.0, 0.88, e) * smoothstep(0.68, 0.86, e);
+    col *= 1.0 - 0.35 * band;
+    // thin bright foam just outside the outline, pulsing gently
+    float rim = smoothstep(1.22, 1.08, e) * smoothstep(1.0, 1.05, e);
+    float pulse = 0.7 + 0.3 * sin(uTime * 1.7 + hp.x * 1.3 + hp.y);
+    col = mix(col, vec3(0.55, 0.66, 0.78), rim * 0.6 * pulse * (0.7 + 0.3 * fn));
   }
 
   // unknown waters: a cool darkening + drifting fog, under the grid lines
@@ -255,29 +237,7 @@ void main() {
   vec3 mistCol = vec3(0.0127, 0.037, 0.083); // #1c3550 in linear
   col = mix(col, mistCol, mistM * (0.09 + 0.05 * fogN));
 
-  // --- battle grids, drawn into the water so lines ride the swell ---
-  float cell = 4.0;
-  for (int g = 0; g < 2; g++) {
-    vec2 mn = g == 0 ? uGridA : uGridB;
-    float inside = inRect(vWorld.xz, mn, 40.0);
-    if (inside > 0.0) {
-      float dl = gridLine(vWorld.xz, mn, cell);
-      float aa = fwidth(dl) + 1e-4;
-      float cellLine = 1.0 - smoothstep(0.02, 0.02 + aa * 1.6, dl);
-      float de = abs(gridEdge(vWorld.xz, mn, 40.0));
-      float border = 1.0 - smoothstep(0.03, 0.03 + aa * 1.8, de);
-      vec3 lineCol = vec3(0.60, 0.68, 0.78);
-      col = mix(col, lineCol, cellLine * 0.22);
-      col = mix(col, vec3(0.68, 0.74, 0.82), border * 0.55);
-    }
-  }
-
-  // hovered enemy cell glow — subtle sea-green wash inside the cell
-  if (uHover.z > 0.5) {
-    vec2 hc = abs(vWorld.xz - uHover.xy);
-    float m = (1.0 - smoothstep(1.2, 1.9, max(hc.x, hc.y)));
-    col += vec3(0.05, 0.14, 0.10) * m;
-  }
+  // (grid lines + hover live on the static overlay — water moves freely)
 
   // distance haze into the horizon
   float d = length(vWorld.xz - cameraPosition.xz);
@@ -298,7 +258,6 @@ export function createBoardOcean(size = 1400) {
       uSunDir: { value: new Vector3(0.35, 0.45, 0.35) },
       uSkyColor: { value: new Vector3(0.1, 0.16, 0.2) },
       uHazeColor: { value: new Vector3(0.1, 0.15, 0.18) },
-      uGridA: { value: new Vector2(-44, -20) },
       uGridB: { value: new Vector2(4, -20) },
       uHover: { value: new Vector4(0, 0, 0, 0) },
       uHullPos: {

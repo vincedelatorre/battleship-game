@@ -7,6 +7,7 @@ import {
   cellToWorld,
   gridBounds,
   gridCenterX,
+  gridLineWorldPositions,
   placementTransform,
   SHIP_BEAM,
   SHIP_LEN_MARGIN,
@@ -79,8 +80,32 @@ describe("board layout", () => {
   });
 });
 
+describe("grid line positions", () => {
+  it("11 lines per axis per grid, CELL-stepped, matching the bounds", () => {
+    for (const g of ["player", "enemy"] as const) {
+      const { x, z } = gridLineWorldPositions(g);
+      const b = gridBounds(g);
+      expect(x).toHaveLength(GRID_CELLS + 1);
+      expect(z).toHaveLength(GRID_CELLS + 1);
+      expect(x[0]).toBe(b.minX);
+      expect(x[GRID_CELLS]).toBe(b.maxX);
+      expect(z[0]).toBe(b.minZ);
+      expect(z[GRID_CELLS]).toBe(b.maxZ);
+      for (let i = 1; i <= GRID_CELLS; i++) {
+        expect(x[i]! - x[i - 1]!).toBe(CELL);
+        expect(z[i]! - z[i - 1]!).toBe(CELL);
+      }
+      // cell centres sit exactly between adjacent lines
+      for (let cIdx = 0; cIdx < GRID_CELLS; cIdx++) {
+        const w = cellToWorld(g, { row: 0, col: cIdx });
+        expect(w.x).toBeCloseTo((x[cIdx]! + x[cIdx + 1]!) / 2, 9);
+      }
+    }
+  });
+});
+
 describe("sprite footprint", () => {
-  interface Meta { w: number; h: number; hullFraction: number }
+  interface Meta { w: number; h: number; hullCx: number; hullCy: number }
   const manifest = JSON.parse(
     readFileSync(
       new URL("../../public/assets/ships/manifest.json", import.meta.url).pathname,
@@ -95,11 +120,14 @@ describe("sprite footprint", () => {
     for (const [key, m] of Object.entries(manifest)) {
       const id = key.split("/")[1]!;
       const cells = SHIP_CELLS[id]!;
-      const { kx, ky } = spriteUnitsPerPixel(cells, m.w, m.h);
-      const len = m.w * kx;   // full sprite bounds, pennants included
-      const beam = m.h * ky;
-      expect(len, `${key} length`).toBeCloseTo(cells * CELL - SHIP_LEN_MARGIN, 5);
+      const { kx, ky } = spriteUnitsPerPixel(cells, m.w, m.h, m.hullCx, m.hullCy);
+      // farthest pixel each side of the hull centre stays inside the margin
+      const lenL = 2 * Math.max(m.hullCx, 1 - m.hullCx) * m.w * kx;
+      const beam = 2 * Math.max(m.hullCy, 1 - m.hullCy) * m.h * ky;
+      expect(lenL, `${key} length`).toBeCloseTo(cells * CELL - SHIP_LEN_MARGIN, 5);
       expect(beam, `${key} beam`).toBeLessThanOrEqual(SHIP_BEAM + 1e-9);
+      const len = m.w * kx;   // full sprite bounds, pennants included
+      expect(len).toBeLessThanOrEqual(lenL); // pennant side never sticks out farther
       // animation extremes: yaw sway rotates the xz footprint — the
       // worst-case bounds must still not cross a grid line
       const c = Math.cos(SHIP_SWAY_MAX), s = Math.sin(SHIP_SWAY_MAX);
@@ -112,9 +140,12 @@ describe("sprite footprint", () => {
 
   it("squeezes the beam axis, never the length", () => {
     const m = manifest["blue/submarine"]!; // the wide lateen diamond
-    const { kx, ky } = spriteUnitsPerPixel(3, m.w, m.h);
-    expect(m.w * kx).toBeCloseTo(3 * CELL - SHIP_LEN_MARGIN, 5);
-    expect(m.h * ky).toBeCloseTo(SHIP_BEAM, 5); // beam hit the cap
+    const { kx, ky } = spriteUnitsPerPixel(3, m.w, m.h, m.hullCx, m.hullCy);
+    expect(2 * Math.max(m.hullCx, 1 - m.hullCx) * m.w * kx)
+      .toBeCloseTo(3 * CELL - SHIP_LEN_MARGIN, 5);
+    // beam hits the cap on its farthest side
+    expect(2 * Math.max(m.hullCy, 1 - m.hullCy) * m.h * ky)
+      .toBeCloseTo(SHIP_BEAM, 5);
     expect(ky).toBeLessThan(kx);
   });
 });

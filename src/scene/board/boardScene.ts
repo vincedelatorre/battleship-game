@@ -21,6 +21,7 @@ import {
   PMREMGenerator,
   Raycaster,
   Scene,
+  ShaderMaterial,
   Shape,
   ShapeGeometry,
   Sprite,
@@ -44,7 +45,9 @@ import { plaqueTexture, puffTexture } from "./textures";
 import {
   CELL,
   cellToWorld,
+  GRID_SIZE,
   gridBounds,
+  SHIP_FLOAT_H,
   SHIP_PITCH_MAX,
   SHIP_ROLL_MAX,
   SHIP_SWAY_MAX,
@@ -62,6 +65,12 @@ export interface BoardView {
   /** debug: tint every engine-occupied cell so sprite alignment is checkable */
   showCells(): void;
   focus(which: "own" | "enemy" | "all"): void;
+  /** debug: force a camera pitch/distance for verification shots */
+  pitchAt(deg: number, dist?: number): void;
+  /** debug: dump ship render state */
+  inspectShips(): unknown[];
+  /** debug: project a world point to screen px */
+  project(wx: number, wy: number, wz: number): { x: number; y: number };
   dispose(): void;
   onHover(cb: (cell: Coord | null) => void): void;
   onFire(cb: (cell: Coord) => void): void;
@@ -148,6 +157,62 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
   (oceanMat.uniforms.uSkyColor!.value as Vector3).set(skyTint.r, skyTint.g, skyTint.b);
   scene.add(ocean);
 
+  // --- static grid overlay: crisp lines + cell border + hover fill ---
+  // Flat planes just above the water mean: lines never ride the swell.
+  const GRID_VERT = /* glsl */ `
+    varying vec3 vWorld;
+    void main() {
+      vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * viewMatrix * vec4(vWorld, 1.0);
+    }`;
+  const GRID_FRAG = /* glsl */ `
+    precision highp float;
+    uniform vec2 uMin;            // grid min x/z
+    uniform vec3 uHoverCell;      // (col, row, on) in cell indices
+    varying vec3 vWorld;
+    void main() {
+      vec2 q = vWorld.xz - uMin;                       // 0..GRID_SIZE local
+      vec2 fq = abs(fract(q / ${CELL}.0 + 0.5) - 0.5) * ${CELL}.0; // dist to nearest line
+      float dl = min(fq.x, fq.y);
+      float aa = fwidth(dl) + 1e-4;
+      float line = 1.0 - smoothstep(0.03, 0.03 + aa * 1.7, dl);
+      float de = min(min(q.x, ${GRID_SIZE}.0 - q.x), min(q.y, ${GRID_SIZE}.0 - q.y));
+      float border = 1.0 - smoothstep(0.05, 0.05 + aa * 1.8, abs(de));
+      vec3 col = vec3(0.66, 0.74, 0.84);         // cool white
+      float a = line * 0.34 + border * 0.8;
+      if (uHoverCell.z > 0.5) {
+        vec2 cc = (uHoverCell.xy + 0.5) * ${CELL}.0;
+        float inside = (1.0 - step(${CELL / 2}.0, abs(q.x - cc.x)))
+                     * (1.0 - step(${CELL / 2}.0, abs(q.y - cc.y)));
+        a = max(a, inside * 0.16);
+        float hb = min(abs(q.x - cc.x), abs(q.y - cc.y));
+        a = max(a, inside * (1.0 - smoothstep(1.62, 1.9, hb)) * 0.35);
+      }
+      gl_FragColor = vec4(col, a); // OutputPass converts
+    }`;
+  const gridOverlays: Record<string, { uniforms: Record<string, { value: unknown }> }> = {};
+  for (const g of ["player", "enemy"] as const) {
+    const bounds = gridBounds(g);
+    const gm = new ShaderMaterial({
+      vertexShader: GRID_VERT,
+      fragmentShader: GRID_FRAG,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      uniforms: {
+        uMin: { value: new Vector2(bounds.minX, bounds.minZ) },
+        uHoverCell: { value: new Vector3(0, 0, 0) },
+      },
+    });
+    const gp = new Mesh(new PlaneGeometry(GRID_SIZE, GRID_SIZE), gm);
+    gp.geometry.rotateX(-Math.PI / 2);
+    gp.position.set(bounds.minX + GRID_SIZE / 2, 0.06, bounds.minZ + GRID_SIZE / 2);
+    gp.renderOrder = 0.5; // above ocean, under shadows/ships
+    scene.add(gp);
+    gridOverlays[g] = gm;
+  }
+  const hoverCellU = gridOverlays.enemy!.uniforms.uHoverCell!.value as Vector3;
+
   // --- camera state: steep tactical view, slight perspective ---
   const cam = {
     target: new Vector3(0, 0, 0),
@@ -181,6 +246,8 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
       sp.center.set(0.5, 0.1); // plaque sits above the buoy
       const buoy = new Mesh(buoyGeo, buoyMat);
       buoy.castShadow = true;
+      buoy.position.set(x, 0.32, z);
+      sp.position.set(x, 1.6, z);
       scene.add(buoy, sp);
       markers.push({ sprite: sp, buoy, x, z });
     };
@@ -530,7 +597,6 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
     // portrait: yawed 90°, the same span runs along the view depth
     return aspect >= 1 ? 82 : 128 * clamp(0.62 / aspect, 1, 1.7);
   }
-  const hoverUniform = oceanMat.uniforms.uHover!.value as Vector4;
 
   function resize() {
     const w = canvas.clientWidth || window.innerWidth;
@@ -563,13 +629,17 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
     }
     applyCamera();
 
-    // markers bob on the swell
-    for (const m of markers) {
-      const hgt = waveHeight(m.x, m.z, clock, WAVES);
-      m.buoy.position.set(m.x, hgt + 0.15, m.z);
-      m.buoy.rotation.z = waveHeight(m.x + 1, m.z, clock, WAVES) - hgt;
-      m.buoy.rotation.x = hgt - waveHeight(m.x, m.z + 1, clock, WAVES);
-      m.sprite.position.set(m.x, hgt + 1.5, m.z);
+    // legend buoys + plaques: fixed heights (static), but shifted along the
+    // camera ray like the ships so each plaque projects exactly onto its
+    // row/column centre line regardless of camera position
+    const camY = Math.max(camera.position.y, 1);
+    const kb = 0.32 / camY; // buoy deck height
+    const kp = 1.6 / camY;  // plaque anchor height
+    for (const mk of markers) {
+      mk.buoy.position.x = mk.x + (camera.position.x - mk.x) * kb;
+      mk.buoy.position.z = mk.z + (camera.position.z - mk.z) * kb;
+      mk.sprite.position.x = mk.x + (camera.position.x - mk.x) * kp;
+      mk.sprite.position.z = mk.z + (camera.position.z - mk.z) * kp;
     }
 
     // ships ride the swell: heave + pitch + roll + a slow independent sway
@@ -579,8 +649,8 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
       const yaw = o.userData.yaw as number;
       const fw = { x: Math.cos(yaw), z: -Math.sin(yaw) };
       const sd = { x: -fw.z, z: fw.x };
-      const cx = o.position.x;
-      const cz = o.position.z;
+      const cx = o.userData.baseX as number; // unshifted cell centre
+      const cz = o.userData.baseZ as number;
       const hC = waveHeight(cx, cz, clock, WAVES);
       const hB = waveHeight(cx + fw.x * hl, cz + fw.z * hl, clock, WAVES);
       const hS = waveHeight(cx - fw.x * hl, cz - fw.z * hl, clock, WAVES);
@@ -591,7 +661,26 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
       const pitch = clamp(Math.atan2(hB - hS, hl * 2), -SHIP_PITCH_MAX, SHIP_PITCH_MAX);
       const roll = clamp(Math.atan2(hP - hQ, 3.6), -SHIP_ROLL_MAX, SHIP_ROLL_MAX);
       const swayYaw = Math.sin(clock * 0.21 + s.sway) * SHIP_SWAY_MAX;
-      o.position.y = hC * 0.55 + 0.02 - sink * 0.3;
+      o.position.y = hC * 0.5 - sink * 0.6;
+      // anti-parallax: the deck sits at ~SHIP_FLOAT_H; shift the group
+      // along the camera ray so its projection stays on the cell centre
+      const deckH = o.position.y + SHIP_FLOAT_H;
+      const pk = deckH / Math.max(camera.position.y, 1);
+      o.position.x = cx + (camera.position.x - cx) * pk;
+      o.position.z = cz + (camera.position.z - cz) * pk;
+      const grad = ((o.userData.sprite as Mesh).material as MeshStandardMaterial)
+        .userData.gradU as
+        | Record<string, { value: { set(x: number, z: number): void } }>
+        | undefined;
+      grad?.uHullC!.value.set(o.position.x, o.position.z);
+      // drop shadow: pinned to the water, offset growing with the heave
+      const blob = o.userData.blob as Mesh;
+      const sp = o.userData.sunPx as { x: number; z: number };
+      const bb = o.userData.blobBase as { x: number; z: number };
+      const lift = Math.max(0.2, deckH / SHIP_FLOAT_H);
+      blob.position.x = bb.x + sp.x * lift;
+      blob.position.z = bb.z + sp.z * lift;
+      blob.position.y = 0.1 - o.position.y; // lands at world ~0.1
       o.rotation.y = yaw + swayYaw;
       o.rotation.x = pitch;
       o.rotation.z = roll + sink * 0.42;
@@ -608,20 +697,24 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
       (o.userData.blob as Mesh).visible = sink < 0.8;
     }
 
-    // reticle rides the swell
+    // reticle: parallax-corrected so it lands dead-centre on the cell
     if (reticleCell) {
       const w = cellToWorld("enemy", reticleCell);
       const hgt = waveHeight(w.x, w.z, clock, WAVES);
       const shake = reticleShake > 0 ? Math.sin(reticleShake * 60) * reticleShake * 0.5 : 0;
-      reticle.position.set(w.x + shake, hgt + 0.55, w.z);
+      const rh = hgt + 0.55;
+      const rk = rh / Math.max(camera.position.y, 1);
+      reticle.position.set(
+        w.x + (camera.position.x - w.x) * rk + shake,
+        rh,
+        w.z + (camera.position.z - w.z) * rk,
+      );
       reticle.visible = true;
       reticleShake = Math.max(0, reticleShake - dt);
-      hoverUniform.x = w.x;
-      hoverUniform.y = w.z;
-      hoverUniform.z = 1;
+      hoverCellU.set(reticleCell.col, reticleCell.row, 1);
     } else {
       reticle.visible = false;
-      hoverUniform.z = 0;
+      hoverCellU.z = 0;
     }
 
     // debug cell tints / wreck glow / outlines ride the swell
@@ -632,9 +725,15 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
       t.m.position.y = waveHeight(t.x, t.z, clock, WAVES) + 0.16;
     }
 
-    // shot markers bob
+    // shot markers bob + stay centred over their cell (parallax shift)
     for (const m of shotMarkers) {
-      m.obj.position.y = waveHeight(m.x, m.z, clock, WAVES) + 0.42;
+      const mh = waveHeight(m.x, m.z, clock, WAVES) + 0.42;
+      const mk = mh / Math.max(camera.position.y, 1);
+      m.obj.position.set(
+        m.x + (camera.position.x - m.x) * mk,
+        mh,
+        m.z + (camera.position.z - m.z) * mk,
+      );
     }
 
     // particles
@@ -748,6 +847,40 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
         cam.dist = fitDist();
         userZoomed = false;
       }
+      cam.lastInput = performance.now();
+    },
+    /** debug: project a world point to screen px through the camera */
+    project(wx: number, wy: number, wz: number) {
+      const v = new Vector3(wx, wy, wz).project(camera);
+      return {
+        x: ((v.x + 1) / 2) * canvas.clientWidth,
+        y: ((1 - v.y) / 2) * canvas.clientHeight,
+      };
+    },
+    /** debug: dump ship render state for verification */
+    inspectShips() {
+      return ships.map((s) => {
+        const sp = s.obj.userData.sprite as Mesh;
+        const m = sp.material as MeshStandardMaterial;
+        const img = m.map?.image as { width?: number } | undefined;
+        return {
+          id: s.placement.id,
+          side: s.side,
+          pos: s.obj.position.toArray().map((v) => +v.toFixed(2)),
+          scale: s.obj.scale.toArray().map((v) => +v.toFixed(4)),
+          spriteY: sp.position.y,
+          mapW: img?.width ?? 0,
+          hasNormal: !!m.normalMap,
+          grad: !!(m.userData as { gradU?: unknown }).gradU,
+          opacity: m.opacity,
+        };
+      });
+    },
+    /** debug: force a camera pitch/distance for verification shots */
+    pitchAt(deg: number, dist = 50) {
+      cam.pitch = (deg * Math.PI) / 180;
+      cam.dist = dist;
+      userZoomed = true;
       cam.lastInput = performance.now();
     },
     dispose() {

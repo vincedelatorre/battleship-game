@@ -58,8 +58,14 @@ export async function startBoard(
   scene.onFire((c) => ctrl.fireAt(c));
 
   if (opts.debug) {
+    (window as unknown as Record<string, unknown>).__scene = scene;
     (window as unknown as Record<string, unknown>).__board = {
       focus: (w: "own" | "enemy" | "all") => scene.focus(w),
+      project: (x: number, y: number, z: number) =>
+        (scene as unknown as { project(x: number, y: number, z: number): { x: number; y: number } })
+          .project(x, y, z),
+      pitch: (d: number, dist?: number) =>
+        (scene as unknown as { pitchAt(d: number, dist?: number): void }).pitchAt(d, dist),
       fireAt: (label: string) => {
         const c = parseLabel(label);
         return c ? ctrl.fireAt(c) : false;
