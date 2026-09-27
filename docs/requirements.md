@@ -148,7 +148,7 @@ Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the bro
 1. **No intro video and no cutscenes** (decision 28). The game opens straight on the main menu.
 2. **Main menu: storm at sea.**
    - **Backdrop:** a live 3D **stormy night ocean**, following the user's reference video (a thunderstorm over the ocean with rain and lightning). Heavy dark swells, forked lightning with thunder, driving rain, and a low camera riding the swell.
-   - **Captains:** two photoreal captains fill the **left and right edges** as close crops on their faces, dissolving into the storm. Captain Ghost is on the left and Captain Crow on the right. They're lit by each lightning flash, with a slow push-in and slight mouse parallax.
+   - **Captains:** two photoreal captains fill the **left and right edges** as close crops on their faces, dissolving into the storm. Vesper Hollow (Ghost Ship) is on the left and Silas Wren (Crow's Nest) on the right. They're lit by each lightning flash, with a slow push-in and slight mouse parallax.
    - **Centre:** the title "PIRATE BATTLESHIP" / "THE DROWNED STRAIT", and a vertical stack of weathered iron-and-brass buttons: **Set Sail**, **Settings** (graphics quality, music/SFX volume, reduced motion), **Credits**.
    - **Audio:** storm ambience (rain, waves, thunder synced to the lightning) plus the home theme.
    - **Safety:** lightning never flashes more than 3 times per second (WCAG 2.3.1), and is dimmed under reduced motion.
@@ -523,7 +523,7 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 13 | Captain's Gambit mode | In v0.1, behind a toggle, default Off (1A) | Orchestrator | 2026-09-26 |
 | 14 | AI gets a captain | Yes, random captain, rule-based Gambit use (1A.4) | Game Designer | 2026-09-26 |
 | 15 | Theme | Pirate theme everywhere; pirate ship display names (1B) | UX Designer | 2026-09-26 |
-| 16 | Captain names | Chosen by Devin during the build per naming brief (1A.5) | Game Designer | |
+| 16 | Captain names | Chosen per the naming brief (1A.5): Broadside = **Ozias Drum** (Gunner), Powder Keg = **Tamsin Kindle** (Demolitions), Crow's Nest = **Silas Wren** (Navigator), Ghost Ship = **Vesper Hollow** (Trickster). Flags, bios and voice lines in `src/ui/captains.ts` | Game Designer | 2026-09-27 |
 | 17 | Gambit board size | 10x10, same as Classic (12x12 rejected, see 1A.1) | Game Designer | 2026-09-26 |
 | 18 | Presentation | 3D RTS-style pirate ocean battle in three.js; StarCraft/Warcraft feel, Unreal-level realism as the target; no RPG systems (1C) | Orchestrator | 2026-09-26 |
 | 19 | Modes | "Standard" (classic) and "Gambit"; captain select in both, powers only in Gambit | Game Designer | 2026-09-26 |

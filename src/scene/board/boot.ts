@@ -6,6 +6,7 @@ import { captainColor } from "./ships";
 import { createBattleController } from "../../ui/battle/controller";
 import { createHud } from "../../ui/battle/hud";
 import { shipCells, type Placement } from "../../engine/index";
+import { loadConfig, type MatchConfig } from "../../ui/config";
 
 /**
  * Boots the battle board: scene + controller + HUD, wired together.
@@ -13,15 +14,16 @@ import { shipCells, type Placement } from "../../engine/index";
  */
 export async function startBoard(
   canvas: HTMLCanvasElement,
-  opts: { debug?: boolean } = {},
+  opts: { debug?: boolean; config?: MatchConfig } = {},
 ): Promise<void> {
+  const config = opts.config ?? loadConfig();
   const scene = await createBoardScene(canvas);
   const hud = createHud(document.body);
 
   const rng = mulberry32(Date.now() >>> 0);
-  const aiCaptain = pickCaptain(rng); // player is blue until captain select
+  const aiCaptain = pickCaptain(rng, config.captain); // always a different colour
   (scene as unknown as { setFleetColors(a: "blue" | "red" | "green" | "black", b: "blue" | "red" | "green" | "black"): void })
-    .setFleetColors("blue", captainColor(aiCaptain) === "blue" ? "red" : captainColor(aiCaptain));
+    .setFleetColors(captainColor(config.captain), captainColor(aiCaptain));
 
   const view: BoardView & { banner(t: string): void; gameOver(w: number): void } = {
     ...scene,

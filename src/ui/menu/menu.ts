@@ -10,6 +10,8 @@ export interface MenuDeps {
 
 export interface MenuHandles {
   onLightning(e: Pick<LightningCue, "intensity" | "side">): void;
+  /** Fade the title, buttons and side portraits out (setup screens on top). */
+  setAway(on: boolean): void;
   dispose(): void;
 }
 
@@ -107,6 +109,12 @@ const CSS = /* css */ `
   .sm-btn{min-width:min(270px,78vw)}
 }
 
+/* --- setup screens on top: menu chrome steps back --- */
+.sm-center,.sm-hint{transition:opacity .35s ease}
+.sm-portrait{transition:filter .12s ease-out,opacity .45s ease}
+.sm-root.sm-away .sm-center,.sm-root.sm-away .sm-hint{opacity:0;visibility:hidden;transition:opacity .35s,visibility 0s .35s}
+.sm-root.sm-away .sm-portrait{opacity:0}
+
 /* --- reduced motion --- */
 .sm-root.sm-reduced .sm-portrait img{animation:none}
 .sm-root.sm-reduced .sm-rain{animation:none}
@@ -156,8 +164,8 @@ export function createMenu(parent: HTMLElement, deps: MenuDeps): MenuHandles {
   const root = document.createElement("div");
   root.className = "sm-root";
   root.innerHTML = `
-    <div class="sm-portrait left"><img src="/assets/captains/captain-ghost.jpg" alt="Captain Ghost"></div>
-    <div class="sm-portrait right"><img src="/assets/captains/captain-crow.jpg" alt="Captain Crow"></div>
+    <div class="sm-portrait left"><img src="/assets/captains/captain-ghost.jpg" alt="Captain Vesper Hollow"></div>
+    <div class="sm-portrait right"><img src="/assets/captains/captain-crow.jpg" alt="Captain Silas Wren"></div>
     <div class="sm-rain" aria-hidden="true"></div>
     <div class="sm-vignette" aria-hidden="true"></div>
     <div class="sm-center">
@@ -350,6 +358,11 @@ export function createMenu(parent: HTMLElement, deps: MenuDeps): MenuHandles {
       flash(right, e.side === "right" ? e.intensity : dim);
       stack.classList.add("struck");
       window.setTimeout(() => stack.classList.remove("struck"), 140);
+    },
+    setAway(on) {
+      root.classList.toggle("sm-away", on);
+      if (on) closePanel();
+      else buttons[0]?.focus();
     },
     dispose() {
       window.removeEventListener("mousemove", onMove);
