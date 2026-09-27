@@ -199,21 +199,26 @@ void main() {
   vec3 t2 = texture2D(uNormalTex, vWorld.xz * 0.29 - vec2(uTime * 0.016, -uTime * 0.010)).rgb * 2.0 - 1.0;
   N = normalize(N + vec3(t1.x + t2.x, 0.0, t1.y + t2.y) * 0.09);
 
-  vec3 deep = vec3(0.0035, 0.036, 0.055);    // #0b3440 in linear
-  vec3 surf = vec3(0.013, 0.165, 0.19);      // #1f6f78 in linear
+  vec3 deep = vec3(0.0036, 0.020, 0.067);    // #0b2748 in linear
+  vec3 surf = vec3(0.011, 0.082, 0.236);     // #1a4f86 in linear
 
   // slow large-scale depth variation + a drifting cloud shadow
   float depthN = vnoise(vWorld.xz * 0.022 + vec2(uTime * 0.011, 0.0));
   float cloud = vnoise(vWorld.xz * 0.009 - vec2(uTime * 0.006, uTime * 0.004));
 
+  vec3 L = normalize(uSunDir);
   float fres = pow(1.0 - max(dot(N, V), 0.0), 3.5);
-  vec3 base = mix(deep, surf, 0.35 + 0.16 * depthN);
-  vec3 col = mix(base, mix(surf, uSkyColor, fres * 0.55), 0.4 + 0.35 * fres);
+  vec3 base = mix(deep, surf, 0.38 + 0.18 * depthN);
+  vec3 col = mix(base, mix(surf, uSkyColor, fres * 0.7), 0.45 + 0.4 * fres);
+  // sunlit swell: bright faces toward the light, darker troughs/lees
+  float lit = clamp(dot(N, L), 0.0, 1.0);
+  col *= 0.78 + 0.42 * lit + 0.09 * vCrest;
+  // large-scale patches, ~±8% luminance, drifting slowly
+  col *= 0.92 + 0.16 * depthN;
   col *= 1.0 - 0.10 * smoothstep(0.55, 0.9, cloud);   // cloud shadow drift
-  col = mix(col, surf * 1.12, smoothstep(0.4, 1.4, vCrest) * 0.25);
+  col = mix(col, surf * 1.15, smoothstep(0.4, 1.4, vCrest) * 0.3);
 
   // sun: smooth glossy lobe + sparse smooth sparkles
-  vec3 L = normalize(uSunDir);
   vec3 H = normalize(L + V);
   float ndh = max(dot(N, H), 0.0);
   // twinkle comes free from the perturbed normals — no hash gate
@@ -223,7 +228,7 @@ void main() {
 
   // subsurface teal on thin crests facing the light
   float subs = pow(max(dot(V, L), 0.0), 4.0);
-  col += vec3(0.0, 0.05, 0.045) * subs * smoothstep(0.2, 1.0, vCrest);
+  col += vec3(0.0, 0.035, 0.09) * subs * smoothstep(0.2, 1.0, vCrest);
 
   // fine crest foam only — smooth noise, kept subtle
   float fn = vnoise(vWorld.xz * 1.7 + vec2(uTime * 0.3, -uTime * 0.2));
@@ -244,6 +249,12 @@ void main() {
     col = mix(col, vec3(0.38, 0.42, 0.41), ring * 0.4 * (0.6 + 0.4 * fn));
   }
 
+  // unknown waters: a cool darkening + drifting fog, under the grid lines
+  float mistM = inRect(vWorld.xz, uGridB, 40.0);
+  float fogN = vnoise(vWorld.xz * 0.045 - vec2(uTime * 0.018, uTime * 0.012));
+  vec3 mistCol = vec3(0.0127, 0.037, 0.083); // #1c3550 in linear
+  col = mix(col, mistCol, mistM * (0.09 + 0.05 * fogN));
+
   // --- battle grids, drawn into the water so lines ride the swell ---
   float cell = 4.0;
   for (int g = 0; g < 2; g++) {
@@ -255,9 +266,9 @@ void main() {
       float cellLine = 1.0 - smoothstep(0.02, 0.02 + aa * 1.6, dl);
       float de = abs(gridEdge(vWorld.xz, mn, 40.0));
       float border = 1.0 - smoothstep(0.03, 0.03 + aa * 1.8, de);
-      vec3 lineCol = vec3(0.55, 0.62, 0.62);
+      vec3 lineCol = vec3(0.60, 0.68, 0.78);
       col = mix(col, lineCol, cellLine * 0.22);
-      col = mix(col, vec3(0.62, 0.66, 0.62), border * 0.55);
+      col = mix(col, vec3(0.68, 0.74, 0.82), border * 0.55);
     }
   }
 
@@ -267,10 +278,6 @@ void main() {
     float m = (1.0 - smoothstep(1.2, 1.9, max(hc.x, hc.y)));
     col += vec3(0.05, 0.14, 0.10) * m;
   }
-
-  // cooler mist over enemy waters — fog of war, never hides the grid
-  float mistM = inRect(vWorld.xz, uGridB, 40.0);
-  col = mix(col, uHazeColor * 1.35, mistM * 0.16);
 
   // distance haze into the horizon
   float d = length(vWorld.xz - cameraPosition.xz);

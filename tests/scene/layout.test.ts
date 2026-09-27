@@ -8,6 +8,9 @@ import {
   gridBounds,
   gridCenterX,
   placementTransform,
+  SHIP_BEAM,
+  SHIP_LEN_MARGIN,
+  SHIP_SWAY_MAX,
   spriteUnitsPerPixel,
   worldToCell,
 } from "../../src/scene/board/layout";
@@ -77,7 +80,7 @@ describe("board layout", () => {
 });
 
 describe("sprite footprint", () => {
-  interface Meta { w: number; h: number; hullFraction: number; lenFraction: number }
+  interface Meta { w: number; h: number; hullFraction: number }
   const manifest = JSON.parse(
     readFileSync(
       new URL("../../public/assets/ships/manifest.json", import.meta.url).pathname,
@@ -88,30 +91,30 @@ describe("sprite footprint", () => {
     carrier: 5, battleship: 4, cruiser: 3, submarine: 3, destroyer: 2,
   };
 
-  it("every sprite fits its cells: hull length ≈ cells×4×0.96, beam ≤ 1.5 cells", () => {
+  it("every sprite sits inside its cells: full length ≤ cells×4−0.5, beam ≤ 4×0.82", () => {
     for (const [key, m] of Object.entries(manifest)) {
       const id = key.split("/")[1]!;
       const cells = SHIP_CELLS[id]!;
-      const { kx, ky } = spriteUnitsPerPixel(cells, m.w, m.h, m.lenFraction);
-      const len = m.w * m.lenFraction * kx;
+      const { kx, ky } = spriteUnitsPerPixel(cells, m.w, m.h);
+      const len = m.w * kx;   // full sprite bounds, pennants included
       const beam = m.h * ky;
-      expect(len, `${key} length`).toBeCloseTo(cells * CELL * 0.96, 5);
-      expect(beam, `${key} beam`).toBeLessThanOrEqual(CELL * 1.5 + 1e-9);
-      // roll/bob keeps the visual within ~±0.25 cell of its band:
-      // beam overhang per side must stay under that
-      expect((beam - CELL) / 2, `${key} overhang`).toBeLessThanOrEqual(CELL * 0.25 + 1e-9);
+      expect(len, `${key} length`).toBeCloseTo(cells * CELL - SHIP_LEN_MARGIN, 5);
+      expect(beam, `${key} beam`).toBeLessThanOrEqual(SHIP_BEAM + 1e-9);
+      // animation extremes: yaw sway rotates the xz footprint — the
+      // worst-case bounds must still not cross a grid line
+      const c = Math.cos(SHIP_SWAY_MAX), s = Math.sin(SHIP_SWAY_MAX);
+      const lenX = len * c + beam * s;
+      const beamX = beam * c + len * s;
+      expect(lenX, `${key} swayed length`).toBeLessThanOrEqual(cells * CELL + 1e-9);
+      expect(beamX, `${key} swayed beam`).toBeLessThanOrEqual(CELL + 1e-9);
     }
   });
 
   it("squeezes the beam axis, never the length", () => {
     const m = manifest["blue/submarine"]!; // the wide lateen diamond
-    const { kx, ky } = spriteUnitsPerPixel(3, m.w, m.h, m.lenFraction);
-    expect(m.w * m.lenFraction * kx).toBeCloseTo(3 * CELL * 0.96, 5);
-    expect(m.h * ky).toBeCloseTo(CELL * 1.5, 5); // beam hit the cap
+    const { kx, ky } = spriteUnitsPerPixel(3, m.w, m.h);
+    expect(m.w * kx).toBeCloseTo(3 * CELL - SHIP_LEN_MARGIN, 5);
+    expect(m.h * ky).toBeCloseTo(SHIP_BEAM, 5); // beam hit the cap
     expect(ky).toBeLessThan(kx);
-    // a slim ship keeps its natural aspect
-    const d = manifest["blue/destroyer"]!;
-    const f = spriteUnitsPerPixel(2, d.w, d.h);
-    expect(f.ky).toBe(f.kx);
   });
 });

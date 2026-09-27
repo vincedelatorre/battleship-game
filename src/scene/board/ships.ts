@@ -96,10 +96,12 @@ export function createShip(id: ShipId, color: FleetColor, meta: SpriteMeta): Obj
       transparent: true,
       alphaTest: 0.12,
       color: 0xfff0da,
+      depthTest: false, // the water never clips a hull
     }),
   );
   sprite.rotation.x = -Math.PI / 2;
-  sprite.position.set((0.5 - meta.lenCx) * meta.w, 0.36, (0.5 - meta.hullCy) * meta.h);
+  sprite.position.set(0, 0.36, 0); // centred on the full sprite bounds
+  sprite.renderOrder = 3;          // above ocean/grid, below markers
   g.add(sprite);
 
   // blob shadow hugs the hull footprint, not the whole sprite
@@ -108,13 +110,15 @@ export function createShip(id: ShipId, color: FleetColor, meta: SpriteMeta): Obj
     new MeshBasicMaterial({
       map: blobTexture(),
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.55,
       depthWrite: false,
+      depthTest: false,
     }),
   );
   blob.rotation.x = -Math.PI / 2;
-  blob.position.set((0.5 - meta.lenCx) * meta.w, 0.14, (0.5 - meta.hullCy) * meta.h + meta.h * 0.04);
-  blob.renderOrder = -1;
+  // centred on the hull; the sun-ward offset is added in placeShipObject
+  blob.position.set((0.5 - meta.hullCx) * meta.w, 0.1, (0.5 - meta.hullCy) * meta.h + meta.h * 0.04);
+  blob.renderOrder = 1;
   g.add(blob);
 
   g.userData.sprite = sprite;
@@ -135,10 +139,16 @@ export function placeShipObject(
 ): void {
   const t = placementTransform(grid, p);
   const meta = ship.userData.meta as SpriteMeta;
-  const { kx, ky } = spriteUnitsPerPixel(t.spanCells, meta.w, meta.h, meta.lenFraction);
+  const { kx, ky } = spriteUnitsPerPixel(t.spanCells, meta.w, meta.h);
   ship.scale.set(kx, 1, ky);
   ship.position.set(t.x, 0, t.z);
   ship.rotation.y = t.yaw;
+  // contact shadow slides a little along the sun direction (world +x,+z)
+  const blob = ship.userData.blob as { position: { x: number; z: number } };
+  const sunX = 0.5, sunZ = 0.5;
+  const cy = Math.cos(t.yaw), sy = Math.sin(t.yaw);
+  blob.position.x += ((sunX * cy - sunZ * sy) / kx) * 0.9;
+  blob.position.z += ((sunX * sy + sunZ * cy) / ky) * 0.9;
   ship.userData.hullLen = meta.w * meta.lenFraction * kx;
   ship.userData.beam = meta.h * ky * 0.6;
   ship.userData.yaw = t.yaw;

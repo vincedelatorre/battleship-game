@@ -82,18 +82,25 @@ export function placementTransform(
 /**
  * Per-axis world units per sprite pixel. The full sprite length —
  * bowsprit tip to stern, w px — spans spanCells × CELL × 0.96 along the
- * length axis. The perpendicular extent (sails/pennants, h px) is
- * squeezed non-uniformly to at most 1.5 cells — slimmer sprites keep
- * ky = kx.
+ * The whole visible sprite (hull, sails, yards, pennants — the full
+ * w×h bounds) must sit inside its cells with a margin, never touching a
+ * grid line: length ≤ cells×4 − SHIP_LEN_MARGIN, beam ≤ SHIP_BEAM.
+ * Only the beam axis is squeezed; kx drops below the length fit only if
+ * the full length would exceed the limit.
  */
+export const SHIP_LEN_MARGIN = 0.5; // world units off the cell span
+export const SHIP_BEAM = CELL * 0.82; // ~0.9u clear water each side
+/** animation clamps, exported so the footprint test can assert extremes */
+export const SHIP_SWAY_MAX = 0.016; // rad of yaw drift
+export const SHIP_PITCH_MAX = 0.07;
+export const SHIP_ROLL_MAX = 0.1;
+
 export function spriteUnitsPerPixel(
   spanCells: number,
   spriteW: number,
   spriteH: number,
-  lenFraction = 1,
 ): { kx: number; ky: number } {
-  // lenFraction excludes pennant wisps that trail past the stern/bowsprit
-  const kx = (spanCells * CELL * 0.96) / (spriteW * lenFraction);
-  const ky = Math.min(kx, (CELL * 1.5) / spriteH);
+  const kx = (spanCells * CELL - SHIP_LEN_MARGIN) / spriteW;
+  const ky = Math.min(kx, SHIP_BEAM / spriteH);
   return { kx, ky };
 }

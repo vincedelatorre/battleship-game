@@ -41,7 +41,15 @@ import { shipCells } from "../../engine/placement";
 import { waveHeight } from "../storm/waves";
 import { createBoardOcean, BOARD_WAVES } from "./ocean";
 import { plaqueTexture, puffTexture } from "./textures";
-import { CELL, cellToWorld, gridBounds, worldToCell } from "./layout";
+import {
+  CELL,
+  cellToWorld,
+  gridBounds,
+  SHIP_PITCH_MAX,
+  SHIP_ROLL_MAX,
+  SHIP_SWAY_MAX,
+  worldToCell,
+} from "./layout";
 import { createShip, placeShipObject, loadShipManifest, type FleetColor } from "./ships";
 
 export interface BoardView {
@@ -80,7 +88,7 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
   renderer.shadowMap.enabled = true;
 
   const scene = new Scene();
-  scene.fog = new FogExp2(new Color(0.10, 0.15, 0.18).convertSRGBToLinear(), 0.0016);
+  scene.fog = new FogExp2(new Color(0.56, 0.70, 0.85).convertSRGBToLinear(), 0.0016); // #8fb3d9
 
   const camera = new PerspectiveCamera(
     45,
@@ -134,9 +142,9 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
   };
   (oceanMat.uniforms.uSunDir!.value as Vector3).copy(SUN_DIR);
   // horizon haze sampled off the sky at the horizon: warm pale teal
-  const haze = new Color(0.34, 0.46, 0.50).convertSRGBToLinear();
+  const haze = new Color(0.56, 0.70, 0.85).convertSRGBToLinear(); // #8fb3d9
   (oceanMat.uniforms.uHazeColor!.value as Vector3).set(haze.r, haze.g, haze.b);
-  const skyTint = new Color(0.22, 0.34, 0.42).convertSRGBToLinear();
+  const skyTint = new Color(0.435, 0.612, 0.784).convertSRGBToLinear(); // #6f9cc8
   (oceanMat.uniforms.uSkyColor!.value as Vector3).set(skyTint.r, skyTint.g, skyTint.b);
   scene.add(ocean);
 
@@ -195,11 +203,14 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
     new MeshStandardMaterial({
       color: 0xc9a35f,
       metalness: 0.8,
+      transparent: true,
+      depthTest: false,
       roughness: 0.3,
       emissive: 0x3a2a10,
     }),
   );
   reticle.rotation.x = -Math.PI / 2;
+  reticle.renderOrder = 5;
   reticle.visible = false;
   scene.add(reticle);
   let reticleCell: Coord | null = null;
@@ -208,11 +219,18 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
   // --- shot markers: white rings (miss) and red X's (hit) ---
   const shotMarkers: { obj: Object3D; x: number; z: number }[] = [];
   const ringGeo = new TorusGeometry(1.5, 0.09, 8, 32);
-  const ringMat = new MeshStandardMaterial({ color: 0xe8e4d4, roughness: 0.6 });
+  const ringMat = new MeshStandardMaterial({
+    color: 0xe8e4d4,
+    roughness: 0.6,
+    transparent: true,
+    depthTest: false,
+  });
   const xMat = new MeshStandardMaterial({
     color: 0xb8281e,
     roughness: 0.5,
     emissive: 0x551008,
+    transparent: true,
+    depthTest: false,
   });
   function addShotMarker(x: number, z: number, hit: boolean) {
     let obj: Object3D;
@@ -221,6 +239,7 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
       const bar = new BoxGeometry(2.6, 0.16, 0.5);
       const a = new Mesh(bar, xMat);
       const b2 = new Mesh(bar, xMat);
+      a.renderOrder = b2.renderOrder = 5; // above depthTest-off ships
       a.rotation.y = Math.PI / 4;
       b2.rotation.y = -Math.PI / 4;
       g.add(a, b2);
@@ -228,6 +247,7 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
     } else {
       obj = new Mesh(ringGeo, ringMat);
       obj.rotation.x = -Math.PI / 2;
+      obj.renderOrder = 5;
     }
     obj.position.set(x, 0.4, z);
     scene.add(obj);
@@ -568,9 +588,9 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
       const hQ = waveHeight(cx - sd.x * 1.8, cz - sd.z * 1.8, clock, WAVES);
       if (s.sinking > 0 && s.sinking < 1) s.sinking = Math.min(1, s.sinking + dt * 0.35);
       const sink = s.sinking;
-      const pitch = clamp(Math.atan2(hB - hS, hl * 2), -0.105, 0.105);
-      const roll = clamp(Math.atan2(hP - hQ, 3.6), -0.14, 0.14);
-      const swayYaw = Math.sin(clock * 0.21 + s.sway) * 0.026;
+      const pitch = clamp(Math.atan2(hB - hS, hl * 2), -SHIP_PITCH_MAX, SHIP_PITCH_MAX);
+      const roll = clamp(Math.atan2(hP - hQ, 3.6), -SHIP_ROLL_MAX, SHIP_ROLL_MAX);
+      const swayYaw = Math.sin(clock * 0.21 + s.sway) * SHIP_SWAY_MAX;
       o.position.y = hC * 0.55 + 0.02 - sink * 0.3;
       o.rotation.y = yaw + swayYaw;
       o.rotation.x = pitch;
