@@ -95,9 +95,19 @@ Balance rationale (analytical estimate, to be confirmed by 1A.6): Powder Keg ≈
 
 ### 1A.5 Captain identity, naming brief, portraits
 - **Naming (done by Devin during the build):** four original pirate names, pronounceable, distinct first letters, fitting each archetype. No real people, no existing fictional or trademarked characters (e.g. no Jack Sparrow, Davy Jones, Hook). Each captain also gets: a flag (colour + emblem), a one-line bio, and short voice lines for select, hit, miss, sink, Gambit, victory, defeat.
-- **Portraits:** each captain has an animated bust portrait in a framed panel, **in the spirit of** StarCraft / Warcraft unit portraits (the talking-head window). Original art only; never copy Blizzard assets or characters.
-  - States: idle loop (breathing, blinking, a signature detail such as a parrot, eye-patch glint, or smoking pipe), talking (when a voice line appears), reacting to hits taken, celebrating hits made, Gambit wind-up, victory, defeat.
-  - Tech (v0.1): layered SVG + CSS keyframe animation (crisp at any size, small, no asset pipeline). Budget ≤ 40 KB per captain, lazy-loaded. `prefers-reduced-motion` shows static portraits. Later iteration: realistic rendered or video portraits (e.g. short Higgsfield/Runway loops) behind the same portrait-state interface.
+- **Portraits: photoreal** (decision 30). Each captain has a realistic portrait in a framed panel, **in the spirit of** StarCraft / Warcraft unit portraits (the talking-head window). The art is supplied by the project owner, who holds the rights, and lives in `public/assets/captains/`:
+
+| Captain | Look | File |
+|---|---|---|
+| Ghost Ship (Trickster) | Skull-faced undead pirate, flintlock | `captain-ghost.jpg` |
+| Crow's Nest (Navigator) | Young, clean-cut, tricorn, cutlass | `captain-crow.jpg` |
+| Broadside (Gunner) | Dreadlocks, war paint, grey beard | `captain-broadside.png` (low-res; a higher-res version is wanted) |
+| Powder Keg (Demolitions) | Woman in an ornate skull tricorn | `captain-powderkeg.png` (low-res; a higher-res version is wanted) |
+
+  - The captain display names are still chosen per the naming brief above. Portrait IDs map to captain IDs, not to names.
+  - **States:** idle, talking (when a voice line appears), reacting to hits taken, celebrating hits made, Gambit wind-up, victory, defeat.
+  - **Tech (v0.1):** the photo is animated in CSS/WebGL: a slow push-in, slight parallax, lighting flashes that react to game events, and a subtle tint and shake per state. Images are served as WebP, ≤ 150 KB each, and lazy-loaded. `prefers-reduced-motion` shows them static.
+  - **Later:** short image-to-video loops (breathing, blinking, speaking) made with Higgsfield or Runway, behind the same portrait-state interface. These are portrait loops, not cutscenes.
   - Both portraits are visible in battle: player's captain by the Ocean Grid, AI's captain by the Target Grid.
 
 ### 1A.6 Balance test (measured, not guessed)
@@ -129,14 +139,18 @@ Decided 2026-09-26: **everything is pirate themed**, in Classic and Gambit modes
 Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the browser. The camera, HUD and menus take their feel from **StarCraft / Warcraft** (overhead RTS camera, framed talking-head portraits, beveled command panels, a cinematic main menu). The ocean, ships and effects aim at **Unreal-level realism** as the long-term target. The game stays turn-based Battleship with no RPG systems (no levels, loot, inventory or stats progression). The theme is all pirate, with original assets only and nothing taken from Blizzard. v0.1 establishes the pipeline and a strong baseline; fidelity grows over later iterations.
 
 ### 1C.1 Screen flow
-1. **Intro video** (placeholder in v0.1): full-screen `<video>`, skippable with any key or click; plays only once per session. Final video will be produced later with Higgsfield and/or Runway (see 1C.6).
-2. **Main menu** (RTS style): live 3D backdrop (flagship at anchor, rolling ocean, slow camera drift, dusk sky), game logo, and a vertical stack of beveled brass/wood buttons: **Set Sail**, **Settings** (graphics quality, music/SFX volume, reduced motion), **Credits**. Home-screen music plays here.
+1. **No intro video and no cutscenes** (decision 28). The game opens straight on the main menu.
+2. **Main menu: storm at sea.**
+   - **Backdrop:** a live 3D **stormy night ocean**, following the user's reference video (a thunderstorm over the ocean with rain and lightning). Heavy dark swells, forked lightning with thunder, driving rain, and a low camera riding the swell.
+   - **Captains:** two photoreal captains fill the **left and right edges** as close crops on their faces, dissolving into the storm. Captain Ghost is on the left and Captain Crow on the right. They're lit by each lightning flash, with a slow push-in and slight mouse parallax.
+   - **Centre:** the title "PIRATE BATTLESHIP" / "THE DROWNED STRAIT", and a vertical stack of weathered iron-and-brass buttons: **Set Sail**, **Settings** (graphics quality, music/SFX volume, reduced motion), **Credits**.
+   - **Audio:** storm ambience (rain, waves, thunder synced to the lightning) plus the home theme.
+   - **Safety:** lightning never flashes more than 3 times per second (WCAG 2.3.1), and is dimmed under reduced motion.
 3. **Choose mode & difficulty:** two large mode cards, **Standard** (classic Hasbro, §1) and **Gambit** (Captain's Gambit, §1A), plus difficulty Deckhand / Buccaneer. The last choice is remembered in localStorage.
 4. **Choose your captain** (**both modes**): 4 captain cards with an animated portrait, flag, bio and (in Gambit mode) the Gambit. In Standard mode the captain is cosmetic only (portrait, flag, voice lines) and grants no power. **Hero shot on selection:** the chosen card eases forward and scales up (~600 ms) with parallax between portrait layers and a slight blur and dim on the other cards (a rack-focus effect), and the captain speaks their select line. CSS transforms and filters only, with no 3D cost. Reduced motion swaps this for an instant highlight.
-5. **Placement:** the RTS camera looks down on your waters. Pick a ship, hover a cell to see a ghost hull (valid and invalid preview), R or a button to rotate, Randomize. The same grid is mirrored in a 2D chart panel that is fully usable by keyboard.
-6. **Battle:** one continuous ocean. Your fleet sits in the near waters, and the enemy waters on the far side are under **fog of war** (enemy ships are never rendered until hit or sunk, and their positions never reach the scene unless the engine reports them). Firing plays a cannon volley, a projectile arc, and then a splash or impact. Hits set fire and smoke, and sinks play a listing-and-sinking animation. The HUD shows both captain portraits (StarCraft-style frames), the move log, fleet status, the Gambit button (Gambit mode), and a 2D tactical chart for each grid (think RTS minimap) that also takes clicks and keyboard input.
-7. **Game over:** a cinematic camera sweep to the winning flagship, stats, the enemy fleet revealed, and Rematch ("Another voyage") / Main menu.
-8. **Cutscenes** (later): short video inserts at key moments (first blood, last ship sunk). The hooks exist in v0.1; there's no content yet.
+5. **Placement:** the RTS camera looks down on your waters. **The board is the 3D ocean itself** (decision 29): a subtle 10×10 grid of rope and buoy markers floats on the swell, and you place ships directly on the water. Pick a ship, hover a cell to see a ghost hull (valid and invalid preview), R or a button to rotate, Randomize. A small 2D chart in the corner mirrors the grid and is fully usable by keyboard; it's the accessibility path and the fallback without WebGL2.
+6. **Battle:** one continuous 3D ocean, and **you aim and fire by clicking the water** (a hover reticle on the cell). The 2D charts shrink to a corner tactical map (think RTS minimap). Your fleet sits in the near waters, and the enemy waters on the far side are under **fog of war** (enemy ships are never rendered until hit or sunk, and their positions never reach the scene unless the engine reports them). Firing plays a cannon volley, a projectile arc, and then a splash or impact. Hits set fire and smoke, and sinks play a listing-and-sinking animation. The HUD shows both captain portraits (StarCraft-style frames), the move log, fleet status, the Gambit button (Gambit mode), and a 2D tactical chart for each grid (think RTS minimap) that also takes clicks and keyboard input.
+7. **Game over:** a cinematic camera sweep to the winning flagship (an in-game camera move, not a video), stats, the enemy fleet revealed, and Rematch ("Another voyage") / Main menu.
 
 ### 1C.2 Camera (RTS)
 - Perspective camera at about 50–60° pitch, looking over the battle like an RTS overview. Pan with WASD, the arrow keys (when the chart isn't focused), edge-scroll or a right-drag. Mouse wheel zooms between clamped limits. Q/E rotate in 45° steps. Space recenters.
@@ -168,18 +182,17 @@ Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the bro
 
 ### 1C.5 Music and sound
 - **Two looping tracks:** a home-screen theme (a stately shanty feel) and a battle theme (more percussion, more tension), crossfaded on screen changes. v0.1 generates both **procedurally with the Web Audio API** (sequenced shanty-style melodies over drones and percussion). That avoids licensing risk and adds no download weight. They can later be replaced by commissioned or properly licensed tracks through the same `MusicPlayer` interface, with any licence recorded in Credits.
-- Browser autoplay rules: audio starts on the first user gesture (the intro skip or the first menu click). The volume setting is persisted in localStorage.
+- Browser autoplay rules: audio starts on the first user gesture (the first click or key press on the menu). The volume setting is persisted in localStorage.
 - SFX: cannon, splash, impact, creak and a wave ambience bed, also synthesized in v0.1.
 - **Ducking:** while a captain voice line or Gambit announcement is showing, music drops 6 dB and SFX 3 dB, fading down over 100 ms and back up over 400 ms.
 - **Haptics:** on touch devices that support `navigator.vibrate`: hit taken = 40 ms, own ship sunk = a [60, 40, 120] ms pattern. Off under reduced motion and when SFX are muted.
 
-### 1C.6 Video (Higgsfield / Runway): later, not v0.1
-- These tools produce pre-rendered video (the intro and cutscenes), not real-time game graphics; the live battle is always three.js.
-- v0.1 ships only the plumbing: a `playCutscene(id)` that plays `public/video/<id>.mp4` if present, is skippable, and is skipped silently if missing.
-- The art direction for the future video must match the in-game ships, flags and captains so the cutscenes and gameplay feel like one world.
+### 1C.6 Video: none
+- There's no intro film and there are no cutscenes (decision 28, which replaces decision 21). Everything the player sees is the live three.js scene plus the HUD.
+- The only planned use of Higgsfield or Runway is short captain **portrait loops** (1A.5, later).
 
 ### 1C.7 Out of scope for v0.1
-RPG systems; real-time ship movement or combat; multiplayer; FFT ocean; glTF ship assets; final intro and cutscene video; voice-acted lines (text voice lines only).
+RPG systems; real-time ship movement or combat; multiplayer; FFT ocean; glTF ship assets; voice-acted lines (text voice lines only).
 
 ### 1C.8 World and art direction
 - **Setting: The Drowned Strait.** A narrow, storm-prone channel littered with the wrecks of past fleets, where four rival captains fight for control. It appears as the main-menu subtitle, in the loading lines, in Credits, and in the Game Over copy ("The Strait is yours.").
@@ -280,7 +293,7 @@ Non-functional
 ### Role 3: UX/UI Designer (look and feel)
 
 Functional
-- Screens (1C.1): Intro video → Main Menu → Mode & Difficulty (Standard / Gambit) → Choose Your Captain → Placement → Battle → Game Over (winner, stats, rematch).
+- Screens (1C.1): Main Menu (storm) → Mode & Difficulty (Standard / Gambit) → Choose Your Captain → Placement → Battle → Game Over (winner, stats, rematch).
 - Placement interaction: click ship, click cell, "R" key / button to rotate, ghost preview showing valid (green) vs invalid (red + pattern) positions.
 - Battle layout: both grids visible (desktop side by side; mobile stacked, Target Grid on top).
 - Feedback: hit / miss / sunk visuals, turn indicator, message log ("AI fires at C-4: Miss").
@@ -396,16 +409,18 @@ The prompt says "play **online** against an AI". Both options satisfy that; the 
 | F26 | 3D ocean battle scene: Gerstner waves, sky, PBR lighting, ships riding the swell (1C.3) | Must |
 | F27 | Five distinct procedural pirate ship styles, one per length (1B, 1C.3) | Must |
 | F28 | RTS camera: pan, zoom, rotate, recenter (1C.2) | Must |
-| F29 | Screen flow: intro placeholder, RTS main menu, mode & difficulty, captain select in both modes (1C.1) | Must |
+| F29 | Screen flow: storm main menu with two photoreal captains, mode & difficulty, captain select in both modes (1C.1) | Must |
 | F30 | Home and battle music, procedural Web Audio, with volume/mute (1C.5) | Must |
 | F31 | Combat effects: cannon, projectile, splash, fire/smoke, sinking (1C.3) | Must (splash, hit), Should (full set) |
 | F32 | Quality tiers + 2D chart fallback without WebGL2 (1C.3) | Must |
-| F33 | Intro video and cutscenes (Higgsfield/Runway) | Later (plumbing only in v0.1) |
+| F33 | ~~Intro video and cutscenes~~ | Dropped (decision 28) |
 | F34 | Camera director: shot follow (both sides), kill-cam on sink, skippable, "Cinematic camera" setting (1C.2) | Must (shot follow), Should (kill-cam) |
 | F35 | Captain-select hero shot (1C.1) | Should |
 | F36 | Camera presets Tactical/Cinematic (T), camera collision, zero-input default framing (1C.2) | Must |
 | F37 | Game feel: hit-stop, distance-scaled additive shake, wreckage persistence (1C.2–1C.3) | Must |
 | F38 | Audio ducking under voice lines/announcements; mobile haptics (1C.5) | Should |
+| F40 | 3D board: place and fire directly on the ocean; the 2D chart becomes a corner tactical map and the accessibility/fallback path (1C.1) | Must |
+| F41 | Photoreal captain portraits with state reactions (1A.5) | Must (idle + lightning/hit reactions), Should (all states) |
 | F39 | World: The Drowned Strait setting, loading lines, Manifest / Ship's Log HUD, palette (1C.8) | Must (setting, palette, log framing), Should (loading lines) |
 
 ## 6. Non-Functional Requirements (consolidated)
@@ -508,3 +523,7 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 25 | AI captain in Standard mode | Random captain, different from the player's, cosmetic only (portrait, flag, banter) | Game Designer | 2026-09-26 |
 | 26 | Ghost Ship balance fix | Ghost Ship repairs 1 hit; the AI uses it at 2 hits (Sloop: 1). Ghost 44.5% → 47.9% (1A.6) | Game Designer | 2026-09-26 |
 | 27 | Powder Keg vs a Ghost-Shipped ship (reconsidered; replaces 23) | Old hits on a relocated ship **no longer** block Powder Keg; hits on the ship at its new position do. Reason: the ship is announced as escaped, the Medium AI already treats it as unfound, and the restriction exists to stop finishing a *located* ship. Balance re-run after the change | Game Designer | 2026-09-26 |
+| 28 | Intro video and cutscenes | **Dropped** (replaces 21). The game opens on the menu; no pre-rendered video anywhere. Higgsfield/Runway only for later portrait loops | Orchestrator | 2026-09-26 |
+| 29 | The board | The board is the 3D ocean itself: place ships and fire by clicking the water; the 2D chart becomes a corner tactical map plus the accessibility/fallback path | UX Designer | 2026-09-26 |
+| 30 | Captain art | Photoreal, owner-supplied (rights confirmed by the owner): Ghost = skull-faced pirate, Crow = young tricorn pirate, Broadside = dreadlocks and war paint, Powder Keg = woman in skull tricorn. Replaces the SVG portraits | UX Designer | 2026-09-26 |
+| 31 | Main menu concept | Live stormy-night ocean (lightning, rain, thunder) after the owner's reference video, with Captain Ghost on the left and Captain Crow on the right as close face crops, menu centred | UX Designer | 2026-09-26 |
