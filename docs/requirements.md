@@ -130,7 +130,13 @@ Decided 2026-09-26: **everything is pirate themed**, in Classic and Gambit modes
 - **Ship display names:** Man-o'-War (5), Galleon (4), Frigate (3), Brigantine (3), Sloop (2). The engine keeps the Hasbro IDs; the UI maps them. The rule "name the ship on every hit" uses the pirate name ("Hit. Frigate.").
 - **Copy:** pirate voice everywhere, readable first, flavour second. Examples: Start → "Set Sail"; Fire → "Fire the cannons!"; miss → "Splash! Nothing but brine."; hit → "Direct hit! Their Frigate takes a ball!"; sink → "Ye sank me Galleon!"; win → "Victory! The seas be yours."; loss → "Down to Davy Jones' locker..."; Rematch → "Another voyage".
 - **Visuals:** the battle is a real-time 3D ocean scene (see 1C). HUD panels use wood, rope and brass frames with a compass rose; the 2D tactical grids read as parchment sea charts. Hit = fire and smoke on the ship plus a red X on the chart; miss = white splash column plus a white ring on the chart (still distinguishable without colour). Difficulty names: Easy = "Deckhand", Medium = "Buccaneer".
-- **Ship styles (one distinct silhouette per length):** Man-o'-War (5): three masts, two gun decks, high stern castle. Galleon (4): three masts, square sails, ornate stern. Frigate (3): sleek three-master with a single gun deck. Brigantine (3): two masts, square-rigged fore and fore-and-aft main, so it can't be confused with the Frigate. Sloop (2): single mast, gaff sail, low hull. Every ship flies its captain's flag.
+- **Ship art (decision 32):** the ships are owner-supplied **top-down painted ships**: brass-and-timber hulls, rigging and billowing emblem sails. They come in **four colour schemes**, each with the same five ships (sheets in `docs/art/ships/`, extracted sprites in `public/assets/ships/<colour>/`):
+  - **Man-o'-War (5):** four masts, diamond/star sails.
+  - **Galleon (4):** three masts, compass-rose main sail.
+  - **Frigate (3):** lion main sail and lion figurehead.
+  - **Brigantine (3):** narrow hull with dark sails (trident/skull emblem).
+  - **Sloop (2):** single mast.
+  - **Colours:** a fleet takes its captain's colour: Crow = blue, Powder Keg = red, Broadside = green, Ghost = black. Every ship flies pennants in that colour.
 - **Audio:** pirate-themed music on the home screen and a separate battle track during the match (see 1C.5), plus cannon, splash, creaking wood and wave SFX. Separate music and SFX volume sliders, with a mute toggle.
 - **Accessibility and clarity win over theme:** ARIA labels and the move log use plain coordinates alongside flavour text (e.g. "B7: hit, Frigate").
 
@@ -167,7 +173,13 @@ Decided 2026-09-26. **North star:** a AAA-feeling pirate naval battle in the bro
 ### 1C.3 Rendering targets (three.js)
 - **Ocean:** animated Gerstner (sum of directional waves) displacement in a custom shader, with Fresnel reflection of the sky, subsurface tint, foam on wave crests and around hulls, and a specular sun glint. Ships ride the swell: hull pitch, roll and heave are sampled from the same wave function on the CPU, so boats and water never disagree. The later upgrade path is FFT ocean and screen-space reflections.
 - **Sky and lighting:** a physically based sky (three `Sky`), with the sun direction driving the directional light, PMREM environment lighting for PBR materials, ACES filmic tone mapping, and sRGB output. A soft shadow map covers the ships.
-- **Ships:** v0.1 builds all five styles procedurally from three.js geometry with PBR materials (wood, canvas, brass), because the procedural approach needs no asset pipeline and loads instantly. Sails and flags move with a vertex-shader wind flutter. There is a documented upgrade path to glTF models (original or licensed, Draco/KTX2 compressed) behind the same `ShipModel` interface.
+- **Ships:** the top-down painted sprites (1B) are laid on the water as textured planes, each sized so its hull spans its cells, with a soft shadow and a foam ring. **They ride the waves in place on their squares:**
+  - heave, pitch and roll are sampled from the same wave function as the water, so boats and water never disagree;
+  - a small per-ship yaw drift, phase-offset so the fleet never moves in unison;
+  - **sizing (decision 34):** a ship's full length spans its cells (× 0.96). The art's wide sail spread is squeezed along the beam axis only, to at most 1.5 cells wide, so the 5-cell Man-o'-War clearly reads as the largest;
+  - clamps keep every ship within about ±0.25 cell of its row/column band while it bobs.
+  - The board camera stays steep (55–85° pitch, default ~72°) so top-down art never reads as flat cards.
+  - glTF models remain a possible later upgrade behind the same `ShipModel` interface.
 - **Effects:** cannon muzzle flash plus a smoke puff, a projectile arc, a splash column, fire and smoke on hits (GPU particles), and a sink animation. Post-processing adds bloom (subtle), vignette and FXAA/SMAA.
 - **Hit-stop:** on a hit or sink, the scene's animation clock freezes for ~60 ms (about 3–4 frames at 60 fps) at the moment of impact, then the explosion and smoke play. Music and the UI are not paused. It is disabled under reduced motion.
 - **Wreckage persistence:** a sunk ship doesn't disappear. Its mesh settles as a low-detail wreck (broken mast stub, floating debris, a thin smoke wisp) on its cells and stays for the rest of the match, so the ocean itself becomes a readable scoreboard. Enemy wrecks exist only because the engine revealed the sunk ship. Wrecks are cleared on Rematch.
@@ -527,3 +539,6 @@ Debrief angle: each flag changes the AI too (Salvo breaks one-shot hunt/target l
 | 29 | The board | The board is the 3D ocean itself: place ships and fire by clicking the water; the 2D chart becomes a corner tactical map plus the accessibility/fallback path | UX Designer | 2026-09-26 |
 | 30 | Captain art | Photoreal, owner-supplied (rights confirmed by the owner): Ghost = skull-faced pirate, Crow = young tricorn pirate, Broadside = dreadlocks and war paint, Powder Keg = woman in skull tricorn. Replaces the SVG portraits | UX Designer | 2026-09-26 |
 | 31 | Main menu concept | Live stormy-night ocean (lightning, rain, thunder) after the owner's reference video, with Captain Ghost on the left and Captain Crow on the right as close face crops, menu centred | UX Designer | 2026-09-26 |
+| 32 | Ship art | Owner-supplied top-down painted ships in four colour schemes (blue, red, green, black), same five ships each; rendered as sprites on the water that ride the waves in place. Replaces procedural 3D ships | UX Designer | 2026-09-26 |
+| 33 | Fleet colours | A fleet takes its captain's colour: Crow = blue, Powder Keg = red, Broadside = green, Ghost = black | UX Designer | 2026-09-26 |
+| 34 | Ship sizing on the board | Full length spans the ship's cells; wide sail art squeezed along the beam to ≤ 1.5 cells (owner chose this over sail overhang or one-cell-wide miniatures) | UX Designer | 2026-09-26 |

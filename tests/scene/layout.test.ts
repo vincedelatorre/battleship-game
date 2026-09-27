@@ -1,0 +1,117 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import {
+  CELL,
+  GRID_CELLS,
+  GRID_SIZE,
+  cellToWorld,
+  gridBounds,
+  gridCenterX,
+  placementTransform,
+  spriteUnitsPerPixel,
+  worldToCell,
+} from "../../src/scene/board/layout";
+import { shipCells } from "../../src/engine/placement";
+
+describe("board layout", () => {
+  it("puts the grids side by side at x=∓24, z=0, with an 8u gap", () => {
+    expect(gridCenterX("player")).toBe(-24);
+    expect(gridCenterX("enemy")).toBe(24);
+    expect(gridBounds("player").maxX).toBe(-4);
+    expect(gridBounds("enemy").minX).toBe(4);
+    expect(gridBounds("player").minZ).toBe(-20);
+    expect(gridBounds("enemy").maxZ).toBe(20);
+    expect(GRID_SIZE).toBe(40);
+    expect(CELL).toBe(4);
+    expect(GRID_CELLS).toBe(10);
+  });
+
+  it("maps A1 to the far-left cell of a grid and J10 to near-right", () => {
+    expect(cellToWorld("player", { row: 0, col: 0 })).toEqual({ x: -42, z: -18 });
+    expect(cellToWorld("player", { row: 9, col: 9 })).toEqual({ x: -6, z: 18 });
+    expect(cellToWorld("enemy", { row: 0, col: 0 })).toEqual({ x: 6, z: -18 });
+    expect(cellToWorld("enemy", { row: 9, col: 9 })).toEqual({ x: 42, z: 18 });
+  });
+
+  it("round-trips cellToWorld/worldToCell for every cell", () => {
+    for (const g of ["player", "enemy"] as const) {
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 10; c++) {
+          const w = cellToWorld(g, { row: r, col: c });
+          expect(worldToCell(g, w.x, w.z)).toEqual({ row: r, col: c });
+        }
+      }
+    }
+  });
+
+  it("returns null outside the grid and does not confuse the two grids", () => {
+    expect(worldToCell("player", 0, 0)).toBeNull(); // the gap
+    expect(worldToCell("player", 0, 30)).toBeNull();
+    expect(worldToCell("enemy", -10, 0)).toBeNull();
+    const w = cellToWorld("enemy", { row: 9, col: 9 });
+    expect(worldToCell("player", w.x, w.z)).toBeNull();
+  });
+
+  it("centres a horizontal ship across its cells with bow toward +x", () => {
+    const t = placementTransform("player", {
+      id: "destroyer",
+      row: 9,
+      col: 0,
+      orientation: "H",
+    });
+    // cells J1,J2: x centres -42,-38 → centre -40; row 9 → z 18
+    expect(t.x).toBeCloseTo(-40);
+    expect(t.z).toBeCloseTo(18);
+    expect(t.yaw).toBe(0);
+    expect(t.spanCells).toBe(2);
+  });
+
+  it("rotates a vertical ship to bow +z", () => {
+    const p = { id: "submarine" as const, row: 0, col: 0, orientation: "V" as const };
+    const t = placementTransform("enemy", p);
+    const cells = shipCells(p);
+    expect(t.spanCells).toBe(cells.length);
+    expect(t.yaw).toBeCloseTo(-Math.PI / 2);
+    expect(t.z).toBeCloseTo(-14); // rows A,B,C centred at z -18,-14,-10 → -14
+  });
+});
+
+describe("sprite footprint", () => {
+  interface Meta { w: number; h: number; hullFraction: number; lenFraction: number }
+  const manifest = JSON.parse(
+    readFileSync(
+      new URL("../../public/assets/ships/manifest.json", import.meta.url).pathname,
+      "utf8",
+    ),
+  ) as Record<string, Meta>;
+  const SHIP_CELLS: Record<string, number> = {
+    carrier: 5, battleship: 4, cruiser: 3, submarine: 3, destroyer: 2,
+  };
+
+  it("every sprite fits its cells: hull length ≈ cells×4×0.96, beam ≤ 1.5 cells", () => {
+    for (const [key, m] of Object.entries(manifest)) {
+      const id = key.split("/")[1]!;
+      const cells = SHIP_CELLS[id]!;
+      const { kx, ky } = spriteUnitsPerPixel(cells, m.w, m.h, m.lenFraction);
+      const len = m.w * m.lenFraction * kx;
+      const beam = m.h * ky;
+      expect(len, `${key} length`).toBeCloseTo(cells * CELL * 0.96, 5);
+      expect(beam, `${key} beam`).toBeLessThanOrEqual(CELL * 1.5 + 1e-9);
+      // roll/bob keeps the visual within ~±0.25 cell of its band:
+      // beam overhang per side must stay under that
+      expect((beam - CELL) / 2, `${key} overhang`).toBeLessThanOrEqual(CELL * 0.25 + 1e-9);
+    }
+  });
+
+  it("squeezes the beam axis, never the length", () => {
+    const m = manifest["blue/submarine"]!; // the wide lateen diamond
+    const { kx, ky } = spriteUnitsPerPixel(3, m.w, m.h, m.lenFraction);
+    expect(m.w * m.lenFraction * kx).toBeCloseTo(3 * CELL * 0.96, 5);
+    expect(m.h * ky).toBeCloseTo(CELL * 1.5, 5); // beam hit the cap
+    expect(ky).toBeLessThan(kx);
+    // a slim ship keeps its natural aspect
+    const d = manifest["blue/destroyer"]!;
+    const f = spriteUnitsPerPixel(2, d.w, d.h);
+    expect(f.ky).toBe(f.kx);
+  });
+});

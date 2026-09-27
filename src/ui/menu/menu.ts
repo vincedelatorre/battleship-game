@@ -4,6 +4,8 @@ export interface MenuDeps {
   readonly ambience: AmbienceController;
   setQuality(q: "auto" | "low" | "high"): void;
   setReducedMotion(on: boolean): void;
+  /** Set Sail → transition to the battle board. */
+  onSail?(): void;
 }
 
 export interface MenuHandles {
@@ -299,7 +301,10 @@ export function createMenu(parent: HTMLElement, deps: MenuDeps): MenuHandles {
 
   // --- buttons + keyboard nav ---
   function onAction(act: string) {
-    if (act === "sail") showToast("Mode select comes next");
+    if (act === "sail") {
+      if (deps.onSail) deps.onSail();
+      else showToast("Mode select comes next");
+    }
     else if (act === "settings") openSettings();
     else if (act === "credits") openCredits();
   }

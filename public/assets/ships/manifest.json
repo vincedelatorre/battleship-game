@@ -1,0 +1,182 @@
+{
+  "blue/carrier": {
+    "w": 637,
+    "h": 187,
+    "hullFraction": 0.743,
+    "hullCx": 0.5165,
+    "hullCy": 0.484,
+    "lenFraction": 0.928,
+    "lenCx": 0.4914
+  },
+  "blue/battleship": {
+    "w": 431,
+    "h": 162,
+    "hullFraction": 0.684,
+    "hullCx": 0.529,
+    "hullCy": 0.4599,
+    "lenFraction": 0.91,
+    "lenCx": 0.4814
+  },
+  "blue/cruiser": {
+    "w": 424,
+    "h": 180,
+    "hullFraction": 0.712,
+    "hullCx": 0.5224,
+    "hullCy": 0.4722,
+    "lenFraction": 0.889,
+    "lenCx": 0.4906
+  },
+  "blue/submarine": {
+    "w": 237,
+    "h": 297,
+    "hullFraction": 0.574,
+    "hullCx": 0.538,
+    "hullCy": 0.4747,
+    "lenFraction": 0.797,
+    "lenCx": 0.443
+  },
+  "blue/destroyer": {
+    "w": 227,
+    "h": 170,
+    "hullFraction": 0.586,
+    "hullCx": 0.5286,
+    "hullCy": 0.4971,
+    "lenFraction": 0.859,
+    "lenCx": 0.4493
+  },
+  "red/carrier": {
+    "w": 636,
+    "h": 194,
+    "hullFraction": 0.796,
+    "hullCx": 0.4866,
+    "hullCy": 0.4845,
+    "lenFraction": 0.921,
+    "lenCx": 0.4882
+  },
+  "red/battleship": {
+    "w": 430,
+    "h": 163,
+    "hullFraction": 0.772,
+    "hullCx": 0.4942,
+    "hullCy": 0.4571,
+    "lenFraction": 0.914,
+    "lenCx": 0.4837
+  },
+  "red/cruiser": {
+    "w": 423,
+    "h": 180,
+    "hullFraction": 0.764,
+    "hullCx": 0.4941,
+    "hullCy": 0.4806,
+    "lenFraction": 0.896,
+    "lenCx": 0.487
+  },
+  "red/submarine": {
+    "w": 238,
+    "h": 300,
+    "hullFraction": 0.584,
+    "hullCx": 0.521,
+    "hullCy": 0.4783,
+    "lenFraction": 0.794,
+    "lenCx": 0.4328
+  },
+  "red/destroyer": {
+    "w": 228,
+    "h": 174,
+    "hullFraction": 0.671,
+    "hullCx": 0.4868,
+    "hullCy": 0.4971,
+    "lenFraction": 0.864,
+    "lenCx": 0.4474
+  },
+  "green/carrier": {
+    "w": 632,
+    "h": 188,
+    "hullFraction": 0.763,
+    "hullCx": 0.5134,
+    "hullCy": 0.4973,
+    "lenFraction": 0.935,
+    "lenCx": 0.4937
+  },
+  "green/battleship": {
+    "w": 428,
+    "h": 160,
+    "hullFraction": 0.778,
+    "hullCx": 0.4977,
+    "hullCy": 0.4625,
+    "lenFraction": 0.925,
+    "lenCx": 0.4895
+  },
+  "green/cruiser": {
+    "w": 423,
+    "h": 182,
+    "hullFraction": 0.764,
+    "hullCx": 0.4965,
+    "hullCy": 0.4753,
+    "lenFraction": 0.898,
+    "lenCx": 0.4905
+  },
+  "green/submarine": {
+    "w": 239,
+    "h": 297,
+    "hullFraction": 0.569,
+    "hullCx": 0.5377,
+    "hullCy": 0.4815,
+    "lenFraction": 0.791,
+    "lenCx": 0.4435
+  },
+  "green/destroyer": {
+    "w": 228,
+    "h": 170,
+    "hullFraction": 0.675,
+    "hullCx": 0.4846,
+    "hullCy": 0.4971,
+    "lenFraction": 0.855,
+    "lenCx": 0.4474
+  },
+  "black/carrier": {
+    "w": 628,
+    "h": 186,
+    "hullFraction": 0.811,
+    "hullCx": 0.4984,
+    "hullCy": 0.4866,
+    "lenFraction": 0.935,
+    "lenCx": 0.4968
+  },
+  "black/battleship": {
+    "w": 428,
+    "h": 147,
+    "hullFraction": 0.731,
+    "hullCx": 0.5327,
+    "hullCy": 0.4796,
+    "lenFraction": 0.918,
+    "lenCx": 0.4813
+  },
+  "black/cruiser": {
+    "w": 422,
+    "h": 172,
+    "hullFraction": 0.673,
+    "hullCx": 0.5462,
+    "hullCy": 0.5,
+    "lenFraction": 0.891,
+    "lenCx": 0.4917
+  },
+  "black/submarine": {
+    "w": 234,
+    "h": 294,
+    "hullFraction": 0.487,
+    "hullCx": 0.5748,
+    "hullCy": 0.4643,
+    "lenFraction": 0.838,
+    "lenCx": 0.4551
+  },
+  "black/destroyer": {
+    "w": 226,
+    "h": 171,
+    "hullFraction": 0.704,
+    "hullCx": 0.4956,
+    "hullCy": 0.4942,
+    "lenFraction": 0.889,
+    "lenCx": 0.4735
+  }
+}
