@@ -4,7 +4,7 @@ import {
   BoxGeometry,
   BufferGeometry,
   Color,
-  CylinderGeometry,
+  CanvasTexture,
   DirectionalLight,
   Float32BufferAttribute,
   FogExp2,
@@ -23,6 +23,7 @@ import {
   Scene,
   ShaderMaterial,
   Shape,
+  SRGBColorSpace,
   ShapeGeometry,
   Sprite,
   SpriteMaterial,
@@ -41,7 +42,8 @@ import type { Coord, Placement, Shot } from "../../engine/types";
 import { shipCells } from "../../engine/placement";
 import { waveHeight } from "../storm/waves";
 import { createBoardOcean, BOARD_WAVES } from "./ocean";
-import { plaqueTexture, puffTexture } from "./textures";
+import { puffTexture } from "./textures";
+import { glyphLabelCanvas, glyphMeta, loadGlyphs } from "../../glyphs";
 import {
   CELL,
   cellToWorld,
@@ -91,6 +93,7 @@ interface FxParticle {
 export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
   BoardView & { renderer: WebGLRenderer }
 > {
+  await loadGlyphs(); // pirate-letter legends
   const renderer = new WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.toneMapping = ACESFilmicToneMapping;
@@ -232,24 +235,20 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
     camera.lookAt(cam.target);
   }
 
-  // --- markers: buoy + plaque sprite per row/col ---
-  const markers: { sprite: Sprite; buoy: Mesh; x: number; z: number }[] = [];
+  // --- markers: gold pirate-letter plaques per row/col ---
+  const markers: { sprite: Sprite; x: number; z: number }[] = [];
   {
-    const buoyGeo = new CylinderGeometry(0.55, 0.7, 0.7, 10);
-    const buoyMat = new MeshStandardMaterial({ color: 0x7a4a26, roughness: 0.9 });
     const rows = "ABCDEFGHIJ";
     const mk = (label: string, x: number, z: number) => {
-      const sp = new Sprite(
-        new SpriteMaterial({ map: plaqueTexture(label), transparent: true }),
-      );
-      sp.scale.set(2.4, 2.4, 1);
-      sp.center.set(0.5, 0.1); // plaque sits above the buoy
-      const buoy = new Mesh(buoyGeo, buoyMat);
-      buoy.castShadow = true;
-      buoy.position.set(x, 0.32, z);
-      sp.position.set(x, 1.6, z);
-      scene.add(buoy, sp);
-      markers.push({ sprite: sp, buoy, x, z });
+      const tex = new CanvasTexture(glyphLabelCanvas(label));
+      tex.colorSpace = SRGBColorSpace;
+      const meta = glyphMeta(label);
+      const sp = new Sprite(new SpriteMaterial({ map: tex, transparent: true }));
+      const hgt = 2.6;
+      sp.scale.set((meta.w / meta.h) * hgt, hgt, 1);
+      sp.position.set(x, 1.7, z);
+      scene.add(sp);
+      markers.push({ sprite: sp, x, z });
     };
     for (const g of ["player", "enemy"] as const) {
       const b = gridBounds(g);
@@ -629,15 +628,12 @@ export async function createBoardScene(canvas: HTMLCanvasElement): Promise<
     }
     applyCamera();
 
-    // legend buoys + plaques: fixed heights (static), but shifted along the
-    // camera ray like the ships so each plaque projects exactly onto its
+    // legend letters: fixed heights (static), but shifted along the camera
+    // ray like the ships so each letter projects exactly onto its
     // row/column centre line regardless of camera position
     const camY = Math.max(camera.position.y, 1);
-    const kb = 0.32 / camY; // buoy deck height
-    const kp = 1.6 / camY;  // plaque anchor height
+    const kp = 1.7 / camY; // letter anchor height
     for (const mk of markers) {
-      mk.buoy.position.x = mk.x + (camera.position.x - mk.x) * kb;
-      mk.buoy.position.z = mk.z + (camera.position.z - mk.z) * kb;
       mk.sprite.position.x = mk.x + (camera.position.x - mk.x) * kp;
       mk.sprite.position.z = mk.z + (camera.position.z - mk.z) * kp;
     }

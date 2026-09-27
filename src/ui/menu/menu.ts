@@ -47,14 +47,12 @@ const CSS = /* css */ `
 .sm-center{position:absolute;top:0;bottom:0;left:34vw;right:34vw;
   display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:8px}
-.sm-title{margin:0;font:700 clamp(30px,3.9vw,64px) Georgia,"Times New Roman",serif;
-  letter-spacing:.10em;text-align:center;line-height:1.12;
-  background:linear-gradient(180deg,#efe0bd 0%,#c8a568 38%,#8f6f3f 58%,#b08d57 78%,#5d452a 100%);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 3px 4px rgba(0,0,0,.65)) drop-shadow(0 10px 26px rgba(0,0,0,.5))}
-.sm-sub{margin:0 0 38px;font:600 clamp(11px,1.3vw,16px) Georgia,serif;
-  letter-spacing:.48em;color:#8fb5b8;text-align:center;text-indent:.48em;
-  text-shadow:0 2px 8px #000}
+.sm-title{margin:0}
+.sm-title img{width:min(94%,540px);height:auto;display:block;margin:0 auto;
+  filter:drop-shadow(0 3px 5px rgba(0,0,0,.7)) drop-shadow(0 0 22px rgba(255,190,90,.28))}
+.sm-sub{margin:0 0 38px}
+.sm-sub img{width:min(88%,360px);height:auto;display:block;margin:0 auto;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.75)) drop-shadow(0 0 12px rgba(140,190,230,.2))}
 .sm-stack{display:flex;flex-direction:column;gap:14px;pointer-events:auto;width:100%;align-items:center}
 .sm-btn{font:700 clamp(15px,1.5vw,19px) Georgia,serif;letter-spacing:.14em;
   color:#ecdfc0;width:min(280px,100%);padding:13px 34px;cursor:pointer;
@@ -138,6 +136,23 @@ export function createMenu(parent: HTMLElement, deps: MenuDeps): MenuHandles {
   style.textContent = CSS;
   document.head.appendChild(style);
 
+  void import("../../glyphs").then(async ({ loadGlyphs, composeLine }) => {
+    await loadGlyphs();
+    const title = root.querySelector<HTMLElement>(".sm-title")!;
+    // both lines on one canvas so the letter size is identical
+    const l1 = composeLine("PIRATE", { capH: 100, spacing: 0.16, spaceW: 0.55 });
+    const l2 = composeLine("BATTLESHIP", { capH: 100, spacing: 0.14, spaceW: 0.55 });
+    const tc = document.createElement("canvas");
+    tc.width = Math.max(l1.width, l2.width);
+    tc.height = l1.height + l2.height + 8;
+    const tg = tc.getContext("2d")!;
+    tg.drawImage(l1, (tc.width - l1.width) / 2, 0);
+    tg.drawImage(l2, (tc.width - l2.width) / 2, l1.height + 8);
+    title.innerHTML = `<img aria-hidden="true" src="${tc.toDataURL()}" alt="">`;
+    const sub = root.querySelector<HTMLElement>(".sm-sub")!;
+    const sc = composeLine("THE DROWNED STRAIT", { capH: 44, spacing: 0.22, spaceW: 0.75 });
+    sub.innerHTML = `<img aria-hidden="true" src="${sc.toDataURL()}" alt="">`;
+  });
   const root = document.createElement("div");
   root.className = "sm-root";
   root.innerHTML = `
@@ -146,8 +161,8 @@ export function createMenu(parent: HTMLElement, deps: MenuDeps): MenuHandles {
     <div class="sm-rain" aria-hidden="true"></div>
     <div class="sm-vignette" aria-hidden="true"></div>
     <div class="sm-center">
-      <h1 class="sm-title">PIRATE<br>BATTLESHIP</h1>
-      <p class="sm-sub">THE DROWNED STRAIT</p>
+      <h1 class="sm-title" role="heading" aria-level="1" aria-label="PIRATE BATTLESHIP"></h1>
+      <p class="sm-sub" aria-label="THE DROWNED STRAIT"></p>
       <nav class="sm-stack" aria-label="Main menu">
         <button class="sm-btn" data-act="sail">Set Sail</button>
         <button class="sm-btn" data-act="settings">Settings</button>
