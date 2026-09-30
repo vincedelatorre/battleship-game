@@ -1,6 +1,8 @@
 # Battleship — Interview Project
 
+**Play it live:** https://battleship-game-rust.vercel.app
 **Repo:** https://github.com/vincedelatorre/battleship-game
+**Planning site:** https://battleship-game-rust.vercel.app/plan/
 
 A pirate-themed Battleship game played against an AI, rendered as a 3D
 naval battle on a live ocean. Classic Hasbro rules plus an optional
