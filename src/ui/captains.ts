@@ -93,7 +93,7 @@ export const CAPTAIN_PROFILES: readonly CaptainProfile[] = [
     gambit: {
       kind: "crowsnest",
       name: "Crow's Nest",
-      text: "Free action: count the ship squares in a 3×3 area, then fire.",
+      text: "A free scout: learn how many ship squares lie in a 3×3 area, then fire.",
     },
     lines: {
       select: ["Charts ready. I've already found them."],

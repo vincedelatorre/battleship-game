@@ -172,3 +172,168 @@ describe("pirate lines", () => {
     ).toBe("They fire C4 — our Sloop is holed!");
   });
 });
+
+// Rows A, C, E, G, I — every ship horizontal from column 1.
+const ROWS_FLEET: readonly Placement[] = [
+  { id: "carrier", row: 0, col: 0, orientation: "H" },
+  { id: "battleship", row: 2, col: 0, orientation: "H" },
+  { id: "cruiser", row: 4, col: 0, orientation: "H" },
+  { id: "submarine", row: 6, col: 0, orientation: "H" },
+  { id: "destroyer", row: 8, col: 0, orientation: "H" },
+];
+
+function makeGambit(
+  captains: readonly [
+    "captain-broadside" | "captain-powderkeg" | "captain-crowsnest" | "captain-ghostship",
+    "captain-broadside" | "captain-powderkeg" | "captain-crowsnest" | "captain-ghostship",
+  ],
+  opts: { hold?: boolean; seed?: number } = {},
+) {
+  const spy = spyView();
+  const extra = {
+    scouts: [] as { center: Coord; count: number; by: number }[],
+    moves: [] as { from: Placement; to: Placement }[],
+    relocated: [] as string[],
+  };
+  let pending: (() => void) | null = null;
+  const ctrl = createBattleController({
+    view: {
+      ...spy.view,
+      scout: (center, count, by) => void extra.scouts.push({ center, count, by }),
+      moveOwnShip: (from, to) => void extra.moves.push({ from, to }),
+      enemyRelocated: (id) => void extra.relocated.push(id),
+    },
+    rng: mulberry32(opts.seed ?? 11),
+    schedule: opts.hold ? (cb) => void (pending = cb) : (cb) => cb(),
+    fleets: [ROWS_FLEET, ROWS_FLEET],
+    gambit: true,
+    captains,
+    debug: true,
+  });
+  return { ctrl, calls: spy.calls, extra, runAi: () => pending?.() };
+}
+
+describe("battle controller — Gambit mode", () => {
+  it("has no Gambit in Standard mode", () => {
+    const { ctrl } = make();
+    expect(ctrl.gambitStatus()).toBeNull();
+    expect(ctrl.state().gambit).toBeUndefined();
+  });
+
+  it("shows Ready, then Unavailable during the AI turn, then Spent", () => {
+    const { ctrl, runAi } = makeGambit(["captain-broadside", "captain-crowsnest"], { hold: true });
+    expect(ctrl.gambitStatus()).toMatchObject({ kind: "broadside", name: "Broadside", state: "ready" });
+    ctrl.fireAt({ row: 9, col: 9 });
+    expect(ctrl.gambitStatus()).toMatchObject({ state: "unavailable", reason: "Wait for your turn" });
+    expect(ctrl.useGambit({ kind: "broadside", targets: [] })).toEqual({ ok: false, error: "busy" });
+    runAi();
+    expect(ctrl.gambitStatus()?.state).toBe("ready");
+    const targets = [{ row: 1, col: 1 }, { row: 1, col: 2 }, { row: 0, col: 1 }];
+    expect(ctrl.useGambit({ kind: "broadside", targets }).ok).toBe(true);
+    runAi();
+    expect(ctrl.gambitStatus()).toMatchObject({ state: "spent" });
+  });
+
+  it("Broadside fires three shots on the enemy grid and names the hit", () => {
+    const { ctrl, calls } = makeGambit(["captain-broadside", "captain-crowsnest"]);
+    const bad = ctrl.checkGambit({ kind: "broadside", targets: [{ row: 1, col: 1 }] });
+    expect(bad).toEqual({ ok: false, error: "invalid_targets" });
+    const before = calls.shots.length;
+    const targets = [{ row: 1, col: 1 }, { row: 0, col: 3 }, { row: 5, col: 5 }];
+    expect(ctrl.useGambit({ kind: "broadside", targets }).ok).toBe(true);
+    const ours = calls.shots.slice(before).filter((s) => s.side === "enemy");
+    expect(ours).toHaveLength(3);
+    expect(ours[1]).toMatchObject({ result: "hit", shipId: "carrier" });
+    expect(calls.banners.some((b) => b.includes("invokes Broadside"))).toBe(true);
+    expect(ctrl.state().players[0].shots).toHaveLength(3);
+  });
+
+  it("Powder Keg is refused next to a known hit and legal in open water", () => {
+    const { ctrl } = makeGambit(["captain-powderkeg", "captain-crowsnest"]);
+    ctrl.fireAt({ row: 4, col: 1 }); // hit the Frigate
+    expect(ctrl.checkGambit({ kind: "powderkeg", center: { row: 5, col: 1 } })).toEqual({
+      ok: false,
+      error: "not_open_water",
+    });
+    expect(ctrl.checkGambit({ kind: "powderkeg", center: { row: 1, col: 7 } }).ok).toBe(true);
+    // a dry run never changes the game
+    expect(ctrl.state().gambit?.used[0]).toBe(false);
+  });
+
+  it("Crow's Nest counts ship squares and leaves the shot to the player", () => {
+    const { ctrl, extra } = makeGambit(["captain-crowsnest", "captain-broadside"]);
+    expect(ctrl.useGambit({ kind: "crowsnest", center: { row: 1, col: 1 } }).ok).toBe(true);
+    expect(extra.scouts).toEqual([{ center: { row: 1, col: 1 }, count: 6, by: 0 }]);
+    expect(ctrl.busy()).toBe(false);
+    expect(ctrl.state().turn).toBe(0);
+    expect(ctrl.fireAt({ row: 1, col: 1 })).toBe(true);
+  });
+
+  it("Ghost Ship moves our ship, patches a hole, and the report follows it", () => {
+    const { ctrl, extra } = makeGambit(["captain-ghostship", "captain-crowsnest"], { seed: 5 });
+    // play plain turns until the AI has holed one of our ships
+    let col = 0;
+    let row = 9;
+    while (!ctrl.state().players[1].shots.some((s) => s.result === "hit")) {
+      ctrl.fireAt({ row, col });
+      col++;
+      if (col === 10) { col = 0; row -= 2; }
+    }
+    const hurt = ctrl.state().players[0].fleet.find((s) => s.hits > 0)!;
+    const fired = ctrl.firedAt("player");
+    // find a free berth for it
+    let to: Placement | null = null;
+    for (let r = 0; r < 10 && !to; r++) {
+      for (let c = 0; c < 10 && !to; c++) {
+        const cand = { id: hurt.id, row: r, col: c, orientation: "V" as const };
+        if (ctrl.checkGambit({ kind: "ghostship", to: cand }).ok) to = cand;
+      }
+    }
+    expect(to).not.toBeNull();
+    expect(shipCells(to!).some((c) => fired.has(`${c.row},${c.col}`))).toBe(false);
+    expect(ctrl.useGambit({ kind: "ghostship", to: to! }).ok).toBe(true);
+    expect(extra.moves.at(-1)).toMatchObject({ from: { id: hurt.id }, to });
+    const rep = ctrl.fleetReport().own.find((s) => s.id === hurt.id)!;
+    expect(rep.hits).toBe(hurt.hits - 1);
+    expect(rep.segments.filter(Boolean)).toHaveLength(hurt.hits - 1);
+  });
+
+  it("the AI invokes its own Gambit and the player sees it announced", () => {
+    const { ctrl, calls } = makeGambit(["captain-crowsnest", "captain-powderkeg"]);
+    ctrl.fireAt({ row: 9, col: 9 });
+    // Powder Keg in hunt mode fires on its first turn: 5 shots on our grid
+    expect(calls.shots.filter((s) => s.side === "player").length).toBeGreaterThanOrEqual(4);
+    expect(calls.banners.some((b) => /Capt\. Kindle invokes Powder Keg/.test(b))).toBe(true);
+    expect(ctrl.state().gambit?.used[1]).toBe(true);
+  });
+});
+
+describe("fleet report", () => {
+  it("marks exactly the squares the AI hit on our ships", () => {
+    const { ctrl } = makeGambit(["captain-crowsnest", "captain-broadside"], { seed: 3 });
+    for (let i = 0; i < 30 && ctrl.state().status === "playing"; i++) {
+      ctrl.fireAt({ row: 9 - (i % 2) * 2, col: Math.floor(i / 2) % 10 }); // open water rows J, H
+    }
+    const incoming = ctrl.state().players[1].shots;
+    for (const rep of ctrl.fleetReport().own) {
+      const p = ROWS_FLEET.find((q) => q.id === rep.id)!;
+      const want = shipCells(p).map((c) =>
+        incoming.some((s) => s.result !== "miss" && s.coord.row === c.row && s.coord.col === c.col),
+      );
+      expect(rep.segments).toEqual(want);
+      expect(rep.exact).toBe(true);
+    }
+  });
+
+  it("counts our named hits on enemy ships without revealing squares, and sinks", () => {
+    const { ctrl } = makeGambit(["captain-crowsnest", "captain-broadside"]);
+    ctrl.fireAt({ row: 0, col: 2 });
+    let rep = ctrl.fleetReport().enemy.find((s) => s.id === "carrier")!;
+    expect(rep).toMatchObject({ hits: 1, sunk: false, exact: false });
+    expect(rep.segments).toEqual([true, false, false, false, false]);
+    ctrl.fireAt({ row: 8, col: 0 });
+    ctrl.fireAt({ row: 8, col: 1 });
+    rep = ctrl.fleetReport().enemy.find((s) => s.id === "destroyer")!;
+    expect(rep).toMatchObject({ hits: 2, sunk: true, exact: true });
+  });
+});

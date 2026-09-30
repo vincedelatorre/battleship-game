@@ -1,14 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   CELL,
   GRID_CELLS,
   GRID_SIZE,
   cellToWorld,
+  getBoardLayout,
   gridBounds,
   gridCenterX,
+  gridCenterZ,
   gridLineWorldPositions,
   placementTransform,
+  setBoardLayout,
   SHIP_BEAM,
   SHIP_LEN_MARGIN,
   SHIP_SWAY_MAX,
@@ -77,6 +80,57 @@ describe("board layout", () => {
     expect(t.spanCells).toBe(cells.length);
     expect(t.yaw).toBeCloseTo(-Math.PI / 2);
     expect(t.z).toBeCloseTo(-14); // rows A,B,C centred at z -18,-14,-10 → -14
+  });
+});
+
+describe("board layout — stacked (narrow canvas)", () => {
+  afterEach(() => setBoardLayout("side"));
+
+  it("stacks the grids along z: enemy far (-24), player near (+24), same 8u gap", () => {
+    setBoardLayout("stacked");
+    expect(gridCenterX("player")).toBe(0);
+    expect(gridCenterX("enemy")).toBe(0);
+    expect(gridCenterZ("enemy")).toBe(-24);
+    expect(gridCenterZ("player")).toBe(24);
+    expect(gridBounds("enemy").maxZ).toBe(-4);
+    expect(gridBounds("player").minZ).toBe(4);
+    expect(gridBounds("player").minX).toBe(-20);
+    expect(gridBounds("enemy").maxX).toBe(20);
+  });
+
+  it("keeps chart axes in both modes: row A far, rows → +z, col 1 left, cols → +x", () => {
+    setBoardLayout("stacked");
+    expect(cellToWorld("player", { row: 0, col: 0 })).toEqual({ x: -18, z: 6 });
+    expect(cellToWorld("player", { row: 9, col: 9 })).toEqual({ x: 18, z: 42 });
+    expect(cellToWorld("enemy", { row: 0, col: 0 })).toEqual({ x: -18, z: -42 });
+    expect(cellToWorld("enemy", { row: 9, col: 9 })).toEqual({ x: 18, z: -6 });
+    // rows increase toward +z, cols toward +x on both grids
+    const a = cellToWorld("enemy", { row: 0, col: 0 });
+    const b = cellToWorld("enemy", { row: 1, col: 1 });
+    expect(b.z - a.z).toBe(CELL);
+    expect(b.x - a.x).toBe(CELL);
+  });
+
+  it("round-trips cellToWorld/worldToCell for every cell", () => {
+    setBoardLayout("stacked");
+    for (const g of ["player", "enemy"] as const) {
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 10; c++) {
+          const w = cellToWorld(g, { row: r, col: c });
+          expect(worldToCell(g, w.x, w.z)).toEqual({ row: r, col: c });
+        }
+      }
+    }
+    // the gap between the stacked grids belongs to neither
+    expect(worldToCell("player", 0, 0)).toBeNull();
+    expect(worldToCell("enemy", 0, 0)).toBeNull();
+  });
+
+  it("restores cleanly to side-by-side", () => {
+    setBoardLayout("stacked");
+    setBoardLayout("side");
+    expect(getBoardLayout()).toBe("side");
+    expect(cellToWorld("player", { row: 0, col: 0 })).toEqual({ x: -42, z: -18 });
   });
 });
 

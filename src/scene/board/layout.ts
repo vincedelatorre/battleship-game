@@ -6,12 +6,13 @@ import { shipCells } from "../../engine/placement";
  * Board world layout — pure math, no three.js.
  *
  * Cell = 4 world units; each 10×10 grid is 40×40.
- * The grids sit side by side along x: player grid ("Your Fleet") centred
- * at x=-24, enemy ("Enemy Waters") at x=+24, both centred on z=0; the
- * 8-unit gap between them is open water.
- * Columns 1–10 run along x, rows A–J along z, row A on the -z edge of
- * each grid so both grids read the same from the default camera.
- * Portrait viewports yaw the camera 90° so the grids stack on screen.
+ * Two layouts, both read like the paper chart (row A at the far edge,
+ * rows → +z, col 1 → -x, cols → +x — the default un-yawed camera looks
+ * down the +z axis so A is up-screen and 1 is left):
+ *  - "side":    grids side by side along x — player x=-24, enemy x=+24.
+ *  - "stacked": grids along z — enemy far at z=-24, player near at z=+24,
+ *               for portrait/narrow canvases.
+ * The 8-unit gap between the grids is open water in both modes.
  */
 export const CELL = 4;
 export const GRID_CELLS = 10;
@@ -19,9 +20,22 @@ export const GRID_SIZE = CELL * GRID_CELLS; // 40
 export const HALF = GRID_SIZE / 2;
 
 export type GridId = "player" | "enemy";
+export type BoardLayout = "side" | "stacked";
+
+let boardLayout: BoardLayout = "side";
+export function setBoardLayout(m: BoardLayout): void {
+  boardLayout = m;
+}
+export function getBoardLayout(): BoardLayout {
+  return boardLayout;
+}
 
 export function gridCenterX(grid: GridId): number {
-  return grid === "player" ? -24 : 24;
+  return boardLayout === "stacked" ? 0 : grid === "player" ? -24 : 24;
+}
+
+export function gridCenterZ(grid: GridId): number {
+  return boardLayout === "stacked" ? (grid === "enemy" ? -24 : 24) : 0;
 }
 
 /** World-space rect of a grid's water area. */
@@ -31,16 +45,19 @@ export function gridBounds(grid: GridId): {
   minZ: number;
   maxZ: number;
 } {
-  const cx = gridCenterX(grid);
-  return { minX: cx - HALF, maxX: cx + HALF, minZ: -HALF, maxZ: HALF };
+  return {
+    minX: gridCenterX(grid) - HALF,
+    maxX: gridCenterX(grid) + HALF,
+    minZ: gridCenterZ(grid) - HALF,
+    maxZ: gridCenterZ(grid) + HALF,
+  };
 }
 
 /** Centre of a cell in world space. */
 export function cellToWorld(grid: GridId, c: Coord): { x: number; z: number } {
-  const cx = gridCenterX(grid);
   return {
-    x: cx - HALF + c.col * CELL + CELL / 2,
-    z: -HALF + c.row * CELL + CELL / 2,
+    x: gridCenterX(grid) - HALF + c.col * CELL + CELL / 2,
+    z: gridCenterZ(grid) - HALF + c.row * CELL + CELL / 2,
   };
 }
 

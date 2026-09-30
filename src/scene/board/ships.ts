@@ -126,6 +126,17 @@ function blurAlpha(a: ArrayLike<number>, w: number, h: number, r: number) {
  *    side — the "solid 3D piece" cue.
  *  - a shadow map: the blurred alpha as a soft black silhouette.
  */
+const derivedCache = new Map<string, Promise<{ normal: Texture; shadow: Texture }>>();
+function derivedMaps(color: FleetColor, id: ShipId): Promise<{ normal: Texture; shadow: Texture }> {
+  const key = `${color}/${id}`;
+  let p = derivedCache.get(key);
+  if (!p) {
+    p = buildDerivedMaps(color, id);
+    derivedCache.set(key, p);
+  }
+  return p;
+}
+
 async function buildDerivedMaps(
   color: FleetColor,
   id: ShipId,
@@ -262,7 +273,7 @@ export function createShip(id: ShipId, color: FleetColor, meta: SpriteMeta): Obj
   blob.renderOrder = 1;
   g.add(blob);
 
-  void buildDerivedMaps(color, id).then(({ normal, shadow }) => {
+  void derivedMaps(color, id).then(({ normal, shadow }) => {
     const m = sprite.material as MeshStandardMaterial;
     m.normalMap = normal;
     m.normalScale.set(3.4, -3.4); // flip G so the sun edge lights
